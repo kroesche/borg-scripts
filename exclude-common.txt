@@ -1,0 +1,15 @@
+sh:**/venv
+*/Downloads*
+*/Automatically*
+*/.DS_*
+*/.DocumentRevisions*
+*/Spotlight*
+*/TemporaryItems
+*/.Trashes
+*/.fseventsd
+*/tmp
+*/temp
+*/cache*
+*/Cache*
+*/.cache
+*/.Trash
