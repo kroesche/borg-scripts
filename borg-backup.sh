@@ -30,6 +30,7 @@ usage()
     echo "<command> is:"
     echo "  backup - perform the backup"
     echo "  test - dry run to see what is backed up"
+    echo "  list - list available configurations"
     echo ""
 }
 
@@ -38,14 +39,45 @@ info()
     printf "%s %s\n" "$( date )" "$*" >&2;
 }
 
+list()
+{
+    echo ""
+    echo "Available backup configurations"
+    echo "-------------------------------"
+    for cfg in borg-set-*
+    do
+        echo $cfg | sed -E "s/borg-set-(.*)\.cfg/\1/"
+    done
+    echo ""
+}
+
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "borg-backup script started"
 
-# validate number of args
-if [ $# -ne 2 ]
+# switch to script directory
+cd "$(dirname "$0")"
+
+# validate arguments
+if [ $# == 1 ]
 then
-    printf "\nExpected 2 args, got %d\n" $#
+    action=$1
+    if [ "$action" == "list" ]
+    then
+        list
+        exit 0
+    elif [ "$action" == "help" ] || [ "$action" == "--help" ]
+    then
+        usage
+        exit 0
+    else
+        printf "\nbad command: $action\n"
+        usage
+        exit 1
+    fi
+elif [ $# -ne 2 ]
+then
+    printf "\nUnexpected command line arguments\n"
     usage
     exit 1
 fi
@@ -53,6 +85,25 @@ fi
 # process arge
 setname=$1              # backup set name
 action=$2               # operation to perform
+
+# determine command action for 2 args
+# 1 arg commands processed above
+# --stats and --dry-run are not compatible switches for borg
+if [ "$action" == "backup" ]
+then
+    info "You requested a real backup"
+    action_switch="--stats"
+    filter="--filter AME"
+elif [ "$action" == "test" ]
+then
+    info "You requested a dry run"
+    action_switch="--dry-run"
+    filter=""
+else
+    info "bad command: $action"
+    usage
+    exit 1
+fi
 
 info "using set name: ${setname}, action: ${action}"
 
@@ -88,9 +139,6 @@ common_exclude_file="exclude-common.txt"
 #
 set_config_file="borg-set-${setname}.cfg"
 
-# switch to script directory
-cd "$(dirname "$0")"
-
 # make sure backup set is valid based on existence of a config file
 if [ -f "${set_config_file}" ]
 then
@@ -118,23 +166,6 @@ fi
 info "BORG_REPO ..."
 info "${BORG_REPO}"
 info "BORG_PASS... is not shown for security"
-
-# --stats and --dry-run are not compatible switches for borg
-if [ "$action" == "backup" ]
-then
-    info "You requested a real backup"
-    action_switch="--stats"
-    filter="--filter AME"
-elif [ "$action" == "test" ]
-then
-    info "You requested a dry run"
-    action_switch="--dry-run"
-    filter=""
-else
-    info "bad command: $action"
-    usage
-    exit 1
-fi
 
 # to get quoting, and paths with spaces being included from the 'set' files,
 # I had to use xargs to get all the command line args expanded correctly to be
