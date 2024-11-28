@@ -3,6 +3,8 @@
 This is my template for my borg backup scripts. I use this instead of borgmatic
 or vorta (or whatever) for reasons.
 
+[Borg Backup](https://borgbackup.readthedocs.io/en/stable/)
+
 ## Installing
 
 Clone this repo or copy the files. I put them in `./config/borg-scripts`

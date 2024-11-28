@@ -53,9 +53,10 @@ list()
     echo "-------------------------------"
     for cfg in borg-set-*
     do
+        BACKUP_SET_DESCRIPTION=""
         . ./$cfg
         setname=$(echo $cfg | sed -E "s/borg-set-(.*)\.cfg/\1/")
-        printf "%-16s %s" "${setname}" "${BACKUP_SET_DESCRIPTION}"
+        printf "%-16s %s\n" "${setname}" "${BACKUP_SET_DESCRIPTION}"
     done
     echo ""
 }
