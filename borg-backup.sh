@@ -25,12 +25,19 @@
 usage()
 {
     echo ""
-    echo "usage: borg-backup <name> <command>"
-    echo "<name> is the name of the backup set"
-    echo "<command> is:"
-    echo "  backup - perform the backup"
-    echo "  test - dry run to see what is backed up"
-    echo "  list - list available configurations"
+    echo "Usage:"
+    echo "  borg-backup -b SET_NAME [-n compact] [-n prune]"
+    echo "  borg-backup -t SET_NAME"
+    echo "  borg-backup -l"
+    echo "  borg-backup -h"
+    echo ""
+    echo "Options:"
+    echo "  -h            show help"
+    echo "  -l            list available backup set configurations"
+    echo "  -b SET_NAME   backup the configuration named SET_NAME"
+    echo "  -t SET_NAME   dry-run backup of SET_NAME"
+    echo "  -n prune      skip prune operation"
+    echo "  -n compact    skip compact operation"
     echo ""
 }
 
@@ -46,7 +53,9 @@ list()
     echo "-------------------------------"
     for cfg in borg-set-*
     do
-        echo $cfg | sed -E "s/borg-set-(.*)\.cfg/\1/"
+        . ./$cfg
+        setname=$(echo $cfg | sed -E "s/borg-set-(.*)\.cfg/\1/")
+        printf "%-16s %s" "${setname}" "${BACKUP_SET_DESCRIPTION}"
     done
     echo ""
 }
@@ -58,45 +67,88 @@ info "borg-backup script started"
 # switch to script directory
 cd "$(dirname "$0")"
 
-# validate arguments
-if [ $# == 1 ]
+# initialize prune and compact defaults
+doprune=1
+docompact=1
+
+# process command line
+# if no options are passed at all, then show help
+if [ $# == 0 ]
 then
-    action=$1
-    if [ "$action" == "list" ]
-    then
-        list
-        exit 0
-    elif [ "$action" == "help" ] || [ "$action" == "--help" ]
-    then
-        usage
-        exit 0
-    else
-        printf "\nbad command: $action\n"
-        usage
-        exit 1
-    fi
-elif [ $# -ne 2 ]
-then
-    printf "\nUnexpected command line arguments\n"
     usage
-    exit 1
+    exit 0
 fi
 
-# process arge
-setname=$1              # backup set name
-action=$2               # operation to perform
+# support --help since that is common
+if [ "$1" == "--help" ]
+then
+    usage
+    exit 0
+fi
 
-# determine command action for 2 args
-# 1 arg commands processed above
+# otherwise, process the options
+# this does not do a lot of cross checking of options so it is possible
+# to specify nonsense set of options
+while getopts ":lhb:t:n:" opt; do
+    case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        l)
+            list
+            exit 0
+            ;;
+        b)
+            if [ "$action" == "test" ]
+            then
+                info "you cannot request both -b and -t"
+                exit 1
+            fi
+            action="backup"
+            setname=${OPTARG}
+            info "requested backup of set: ${setname}"
+            ;;
+        t)
+            if [ "$action" == "backup" ]
+            then
+                info "you cannot request both -b and -t"
+                exit 1
+            fi
+            action="test"
+            setname=${OPTARG}
+            info "requested dry-run of set: ${setname}"
+            ;;
+        n)
+            if [ "${OPTARG}" == "prune" ]
+            then
+                doprune=0
+                info "requested skip pruning"
+            elif [ "${OPTARG}" == "compact" ]
+            then
+                docompact=0
+                info "requested skip compacting"
+            fi
+            ;;
+        :)
+            echo "Option -${OPTARG} requires an argument"
+            exit 1
+            ;;
+        ?)
+            echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+    esac
+done
+
+# determine command action
 # --stats and --dry-run are not compatible switches for borg
 if [ "$action" == "backup" ]
 then
-    info "You requested a real backup"
     action_switch="--stats"
     filter="--filter AME"
 elif [ "$action" == "test" ]
 then
-    info "You requested a dry run"
     action_switch="--dry-run"
     filter=""
 else
@@ -196,20 +248,30 @@ fi
 
 backup_exit=$?
 
-info "Pruning backup"
+if [ $doprune == 1 ]
+then
+    info "Pruning backup"
 
-borg prune --list --glob-archives "{hostname}-${setname}-*" --show-rc    \
-    --keep-daily 7                  \
-    --keep-weekly 4                 \
-    --keep-monthly 6
+    borg prune --list --glob-archives "{hostname}-${setname}-*" --show-rc    \
+        --keep-daily 7                  \
+        --keep-weekly 4                 \
+        --keep-monthly 6
+    prune_exit=$?
+else
+    info "skipping prune"
+    prune_exit=0
+fi
 
-prune_exit=$?
+if [ $docompact == 1 ]
+then
+    info "Compacting backup"
 
-info "Compacting backup"
-
-borg compact
-
-compact_exit=$?
+    borg compact
+    compact_exit=$?
+else
+    info "skipping compact"
+    compact_exit=0
+fi
 
 global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
 global_exit=$(( compact_exit > global_exit ? compact_exit : global_exit ))
