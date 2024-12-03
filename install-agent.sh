@@ -1,0 +1,293 @@
+#!/bin/sh
+#
+# Copyright 2024 Joseph Kroesche
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# this script is used for setting up a launch agent on macos, so it has
+# macos specific stuff in it and wont work on non-mac
+
+LOG_PATH="${HOME}/Library/Logs"
+LOG_FILE="borg-backup.log"
+
+usage()
+{
+    cat <<USAGE
+
+Generate and optionally install, load, unload, and run a MacOS backup agent
+
+Usage:
+  install-agent [-D DAY] [-H HOUR] [-M MIN] [-i] SET_NAME
+  install-agent [-D DAY] [-H HOUR] [-M MIN] SET_NAME
+  install-agent [ -l | -u | -r | -s | -p ] SET_NAME
+  install-agent -a
+  install-agent -h
+
+Options:
+  SET_NAME      the name of the backup set (required parameter)
+  -D DAY        day of week to schedule (0-Sunday), omit for daily schedule
+  -H HOUR       hour of the day to run, omit for hourly schedule
+  -M MIN        minute of the hour to run (defaults to 5)
+  -i            install the plist into ~/Library/LaunchAgents
+  -l            load the agent using launchctl
+  -u            unload the agent using launchctl
+  -r            run the agent on demand, useful for debug
+  -s            show the status of the agent, using launchctl list
+  -p            dump the agent plist
+  -a            list backup agents installed in ~/Library/LaunchAgents
+  -h            show help
+
+The command without -i generates the agent plist file to the console.
+
+USAGE
+}
+
+# process command line
+# if no options are passed at all, then show help
+if [ $# = 0 ]
+then
+    usage
+    exit 0
+fi
+
+# support --help since that is common
+if [ "$1" = "--help" ]
+then
+    usage
+    exit 0
+fi
+
+minute=5
+minute_key="<key>Minute</key><integer>${minute}</integer>"
+day_key=""
+hour_key=""
+do_install=0
+do_load=0
+do_unload=0
+do_run=0
+do_status=0
+do_dump=0
+
+while getopts ":D:H:M:ilursaph" opt; do
+    case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        D)
+            day=${OPTARG}
+            day_key="<key>Weekday</key><integer>${day}</integer>"
+            if [ ${day} -gt 7 ] || [ ${day} -lt 0 ]
+            then
+                echo "-D value for day must be 0-7"
+                exit 1
+            fi
+            ;;
+        H)
+            hour=${OPTARG}
+            hour_key="<key>Hour</key><integer>${hour}</integer>"
+            if [ ${hour} -gt 23 ] || [ ${hour} -lt 0 ]
+            then
+                echo "-H value for hour must be 0-23"
+                exit 1
+            fi
+            ;;
+        M)
+            minute=${OPTARG}
+            minute_key="<key>Minute</key><integer>${minute}</integer>"
+            if [ ${minute} -gt 59 ] || [ ${minute} -lt 0 ]
+            then
+                echo "-M value for minute must be 0-59"
+                exit 1
+            fi
+            ;;
+        i)
+            do_install=1
+            ;;
+        l)
+            do_load=1
+            ;;
+        u)
+            do_unload=1
+            ;;
+        r)
+            do_run=1
+            ;;
+        s)
+            do_status=1
+            ;;
+        p)
+            do_dump=1
+            ;;
+        a)
+            echo ""
+            echo "Backup sets installed as agents"
+            echo "-------------------------------"
+            for plist in ${HOME}/Library/LaunchAgents/local.$(hostname -s).backup.*
+            do
+                echo ${plist} | sed -E "s|^.*\/local\.$(hostname -s)\.backup\.(.*)\.plist|\1|"
+            done
+            exit 0
+            ;;
+        :)
+            echo "Option -${OPTARG} requires an argument"
+            exit 1
+            ;;
+        ?)
+            echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+    esac
+done
+
+# get the last parameter which should be the required positional SET_NAME
+shift $((OPTIND-1))
+if [ $# = 0 ]
+then
+    echo "a backup set name is required"
+    exit 1
+fi
+backup_name=$1
+
+# calculate names of some things
+agent_name="local.$(hostname -s).backup.${backup_name}"
+plist_file="${HOME}/Library/LaunchAgents/${agent_name}.plist"
+
+# check for non-install options first: -l, -u, -r
+# these take precedence over install
+
+if [ ${do_dump} -eq 1 ]
+then
+    if [ -f ${plist_file} ]
+    then
+        cat ${plist_file}
+        exit 0
+    else
+        echo "No agent plist named:"
+        echo "${plist_file}"
+        exit 1
+    fi
+fi
+
+if [ ${do_load} -eq 1 ]
+then
+    echo "loading launch agent: ${plist_file}"
+    launchctl bootstrap gui/$(id -u) ${plist_file}
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+        echo "launchctl returned error code ${ret}"
+        echo "maybe it was already loaded? maybe it's not installed?"
+        exit 1
+    else
+        exit 0
+    fi
+fi
+
+if [ ${do_unload} -eq 1 ]
+then
+    echo "unloading launch agent: ${plist_file}"
+    launchctl bootout gui/$(id -u) ${plist_file}
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+        echo "launchctl returned error code ${ret}"
+        echo "maybe it wasn't loaded? maybe it's not installed?"
+        exit 1
+    else
+        exit 0
+    fi
+fi
+
+if [ ${do_run} -eq 1 ]
+then
+    echo "running launch agent: ${agent_name}"
+    launchctl kickstart gui/$(id -u)/${agent_name}
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+        echo "launchctl returned error code ${ret}"
+        echo "maybe it wasn't loaded? maybe it's not installed?"
+        exit 1
+    else
+        exit 0
+    fi
+fi
+
+if [ ${do_status} -eq 1 ]
+then
+    echo "status of launch agent: ${agent_name}"
+    launchctl list | grep "PID\|${agent_name}"
+    exit 0
+fi
+
+# if none of those other options was specified, then generate the plist and
+# write either to the plist file or to the console
+
+if [ ${do_install} -eq 1 ]
+then
+    plist_out=${plist_file}
+    echo "Writing agent plist to ${plist_file}"
+    echo "You may get a notification from MacOS that a launch item was installed"
+else
+    plist_out="/dev/stdout"
+    echo ""
+    echo "Here is the agent plist for your review:"
+    echo ""
+fi
+
+# user PATH may not be available to script running as launch agent, so figure
+# out exact path to borg and include it in the plist
+BORGBIN=$(command -v borg)
+echo "Found borg executable path to be: ${BORGBIN}"
+
+
+cat >${plist_out}<<END
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>${agent_name}</string>
+    <key>ProgramArguments</key>
+      <array>
+        <string>${HOME}/.config/borg-scripts/borg-backup.sh</string>
+        <string>-b</string>
+        <string>${backup_name}</string>
+      </array>
+    <key>EnvironmentVariables</key>
+      <dict>
+        <key>BORGBIN</key><string>${BORGBIN}</string>
+      </dict>
+    <key>StandardOutPath</key>
+    <string>${LOG_PATH}/${LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_PATH}/${LOG_FILE}</string>
+    <key>StartCalendarInterval</key>
+      <dict>
+        ${day_key}
+        ${hour_key}
+        ${minute_key}
+      </dict>
+  </dict>
+</plist>
+END
+
+echo "Done"
+exit 0

@@ -36,18 +36,14 @@ your backup set. Then invoke with:
 
     ./borg-backup.sh -b mybackup
 
+## Launch Agent
+
+There is a script `./install-agent.sh` that will install a LaunchAgent
+(on MacOS) to run a backup on a schedule.
+
 ## Help
 
-    Usage:
-      borg-backup -b SET_NAME [-n compact] [-n prune]
-      borg-backup -t SET_NAME
-      borg-backup -l
-      borg-backup -h
+Run the script with `-h` to get some help.
 
-    Options:
-      -h            show help
-      -l            list available backup set configurations
-      -b SET_NAME   backup the configuration named SET_NAME
-      -t SET_NAME   dry-run backup of SET_NAME
-      -n prune      skip prune operation
-      -n compact    skip compact operation
+    ./borg-backup.sh -h
+    ./install-agent.sh -h
