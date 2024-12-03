@@ -13,3 +13,6 @@ sh:**/venv
 */Cache*
 */.cache
 */.Trash
+*/Logs
+*/.MobileBackups*
+*/MobileBackups*

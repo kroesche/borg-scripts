@@ -65,6 +65,29 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "borg-backup script started"
 
+# determine the path to the borg executable
+# BORGBIN environment variable can be used to pass in the path.
+# If it is not defined then just assume it is on the path.
+# The reason to do this is because when run under launchctl (for automated
+# backups on mac) the PATH is very limited and doesnt include any 'local'
+# paths or package managers. This allows the path to borg to be specified
+# from the launch agent.
+if [ -z "${BORGBIN}" ]
+then
+    info "using borg executable from PATH"
+    BORG=borg
+else
+    info "using borg executable from BORGBIN"
+    info "(${BORGBIN})"
+    BORG=${BORGBIN}
+fi
+
+if ! command -v ${BORG} 2>&1 >/dev/null
+then
+    info "could not find borg executable using: ${BORG}"
+    exit 1
+fi
+
 # switch to script directory
 cd "$(dirname "$0")"
 
@@ -238,7 +261,7 @@ info $BORG_CLI_ARGS
 
 info "Starting backup: ${setname}"
 # use xargs to expand args and pass to borg. this seems to work
-echo $BORG_CLI_ARGS | xargs borg
+echo $BORG_CLI_ARGS | xargs ${BORG}
 
 # if it was a test run, just exit here
 if [ "$action" == "test" ]
@@ -253,7 +276,7 @@ if [ $doprune == 1 ]
 then
     info "Pruning backup"
 
-    borg prune --list --glob-archives "{hostname}-${setname}-*" --show-rc    \
+    ${BORG} prune --list --glob-archives "{hostname}-${setname}-*" --show-rc    \
         --keep-daily 7                  \
         --keep-weekly 4                 \
         --keep-monthly 6
@@ -267,7 +290,7 @@ if [ $docompact == 1 ]
 then
     info "Compacting backup"
 
-    borg compact
+    ${BORG} compact
     compact_exit=$?
 else
     info "skipping compact"
