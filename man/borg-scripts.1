@@ -1,0 +1,27 @@
+.TH "BORG-SCRIPTS" "1" "2024-12-02" "borg-scripts 0.1"
+
+.SH NAME
+.P
+borg-scripts \- A collection of scripts for managing borg backups.
+.SH DESCRIPTION
+.P
+.B borg-scripts
+is a collection of shell scripts to help manage backups using the Borg backup
+utility.  To date, these scripts were developed for use on MacOS and have only
+been tested there. The scripts could be made to work on Linux with some
+modifications. They are intended for user mode backup and run with user
+permissions and are not designed for system level backups.
+.P
+See the man page for each of the scripts for more details.
+.SH SCRIPTS
+.IP borg-backup
+the main backup script
+.IP install-agent
+installs a launch agent for automated, scheduled backups
+.SH FILES
+.P
+While it should be possible to locate this script package in any accessible
+directory, it is intended to be located in
+.I ~/.config/borg-scripts.
+.SH SEE ALSO
+.B <https://borgbackup.readthedocs.io/en/stable/>

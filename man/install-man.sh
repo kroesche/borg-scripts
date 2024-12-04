@@ -1,0 +1,97 @@
+#!/bin/sh
+#
+# Copyright 2024 Joseph Kroesche
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# This script is for installing the man pages to /usr/local manpages
+# If you want to be able to type "man borg-backup", the run this script once
+# and it should copy the man pages.
+#
+# If you dont want to install them, you can just view them by passing the
+# file name, like:
+#     man borg-backup.1
+
+# you can also use this script to attempt to remove the previously installed
+# man pages, using -r
+
+usage()
+{
+    cat <<USAGE
+
+Install or remove man pages for borg-scripts. You will most likely need to
+use "sudo".
+
+Usage:
+  sudo install-man -i
+  sudo install-man -r
+
+Options:
+  -i            install man pages to /usr/local/man
+  -r            attempt to delete previously installed pages
+  -h            show help
+
+USAGE
+}
+
+INSTALL_PATH=/usr/local/share/man/man1
+
+# process command line
+# if no options are passed at all, then show help
+if [ $# = 0 ]
+then
+    usage
+    exit 0
+fi
+
+# support --help since that is common
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]
+then
+    usage
+    exit 0
+fi
+
+if [ "$1" = "-i" ]
+then
+    for manpage in *.1
+    do
+        echo "Installing $manpage to ${INSTALL_PATH}"
+        install -g 0 -o 0 -m 0644 $manpage ${INSTALL_PATH}
+        echo "gzipping ${INSTALL_PATH}/${manpage}"
+        gzip ${INSTALL_PATH}/${manpage}
+    done
+    exit 0
+fi
+
+
+if [ "$1" = "-r" ]
+then
+    for manpage in *.1
+    do
+        echo "attempting to remove ${INSTALL_PATH}/${manpage}.gz"
+        rm -f ${INSTALL_PATH}/${manpage}.gz
+    done
+    exit 0
+fi
+
+# wrong thing was specified so show help
+echo ""
+echo "Bad arguments"
+usage
+exit 1

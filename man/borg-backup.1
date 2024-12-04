@@ -1,0 +1,99 @@
+.TH "BORG-BACKUP" "1" "2024-12-02" "borg-scripts 0.1"
+
+.SH NAME
+.P
+borg-backup \- Run a backup using 'borg' backup utility, using a config file.
+
+.SH SYNOPSIS
+.SY borg-backup
+.B \-b
+.I SET_NAME
+.RB [ \-n
+.IR compact ]
+.RB [ \-n
+.IR prune ]
+.YS
+.SY borg-backup
+.B \-t
+.I SET_NAME
+.YS
+.SY borg-backup
+.B \-l
+.YS
+.SY borg-backup
+.B \-h
+.YS
+.
+.SH DESCRIPTION
+.P
+.B borg-backup
+is a script to assist with making backups using 'borg'. It uses the concept of
+"backup sets" which are named configurations. Each backup set can have its own
+backup paths and exclusions.
+.P
+The first form is used to make a backup of the specified backup set.
+.P
+The second form tests the backup by performing a dry-run. The backup results
+are printed to the console but no backup is actually performed. This can be
+used to test a backup and make sure it does what is intended.
+.P
+The third form is used to list all the defined backup sets.
+.P
+A backup set is defined in a configuration file, named like
+"borg\-set\-example.cfg". In this example the name of the backup set is
+"example". The configuration file has several variables defined to configure
+the paths that will be backed up as well as paths to exclude. Look in the
+example file comments for more details about what needs to go in this file.
+.
+.SH OPTIONS
+.IP "-b SET_NAME"
+perform a backup of the specified data set
+.IP "-t SET_NAME"
+perform a dry-run backup, show what would happen without actually backing up
+any files
+.IP "-n prune"
+disable the prune operation at the end of a backup
+.IP "-n compact"
+disable the compact operation at the end of a backup
+.IP "-l"
+list the available backup set definitions
+.IP \-h
+show help
+.
+.SH EXIT STATUS
+.P
+Returns non-zero if an error occurred at any stage, or zero if all stages were
+successful.
+.
+.SH FILES
+.P
+The configuration files are located in the same directory as the
+.I borg-backup.sh
+script.
+.P
+.I ./borg-set-SETNAME.cfg
+.RS
+Configuration file for the backup set named SETNAME.
+.
+.RE
+.I ./borg-repo.cfg
+.RS
+Configuration file defining the borg repository and credentials.
+.RE
+.I ./exclude-common.txt
+.RS
+Common files and paths to be excluded from all backup sets.
+.RE
+.
+.SH EXAMPLES
+.EX
+.B $ borg-backup -b example
+.EE
+.RS
+Perform a backup of the backup set named "example".
+.RE
+.SH SEE ALSO
+.BR borg-scripts(1),
+.BR install-agent(1)
+.P
+.B <https://borgbackup.readthedocs.io/en/stable/>

@@ -25,8 +25,8 @@ Which should show a dry run without backing anything up. Or:
 
     ./borg-backup.sh -b example
 
-which will perform a test backup up of these scripts (you can delete the test
-backup later).
+which will perform an actual backup up of these scripts (you can delete the
+test backup later).
 
 ## Customize
 
@@ -47,3 +47,14 @@ Run the script with `-h` to get some help.
 
     ./borg-backup.sh -h
     ./install-agent.sh -h
+
+Also, there are man pages in `man/` directory. You can install these on your
+system. See the script `install-man.sh`. Then you can use man to see some
+documentation:
+
+    man borg-backup
+
+Or if you don't want to install the man pages, you can just view them directly
+like:
+
+    man man/borg-backup.1

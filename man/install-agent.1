@@ -1,0 +1,126 @@
+.TH "INSTALL-AGENT" "1" "2024-11-30" "borg-scripts 0.1"
+
+.SH NAME
+.P
+install-agent \- Install and manage MacOS launch agent for borg backup.
+
+.SH SYNOPSIS
+.SY install-agent
+.RB [ \-D
+.IR DAY ]
+.RB [ \-H
+.IR HOUR ]
+.RB [ \-M
+.IR MIN ]
+.B \-i
+.I SET_NAME
+.YS
+.SY
+.SY install-agent
+.RB [ \-D
+.IR DAY ]
+.RB [ \-H
+.IR HOUR ]
+.RB [ \-M
+.IR MIN ]
+.I SET_NAME
+.YS
+.SY install-agent
+.RB [\~\-l\~|\~\-u\~|\~\-r\~|\~\-s\~|\~\-p\~]
+.I SET_NAME
+.YS
+.SY install-agent
+.B \-a
+.YS
+.SY install-agent
+.B \-h
+.YS
+
+.SH DESCRIPTION
+.P
+.B install-agent
+is a helper script to make it easier to install a borg backup script as a
+LaunchAgent on MacOS. It will generate the necessary plist file, and optionally
+install it. Options are also provided to help with loading, unloading, and
+running the launch agent.
+
+.P
+The first form is used to create the launch agent with a scheduled run time and
+install it into the LaunchAgent system.
+
+.P
+The second form is similar except the plist file is displayed to the console
+and not installed. This is useful for verifying the plist file before
+installing it.
+
+.P
+The third form is for manipulating and querying the installed agent.
+
+.P
+The fourth form lists all of the installed backup agent plist files.
+
+.SH OPTIONS
+.IP SET_NAME
+the name of the backup set (required parameter)
+.IP "-D DAY"
+day of week to schedule (0-Sunday). If \-D is not used, then the schedule
+will run daily.
+.IP "-H HOUR"
+hour of the day to run. If \-H is not used, then the schedule will run hourly.
+.IP "-M MIN"
+minute of the hour to run (default 5)
+.IP "-i SET_NAME"
+install the plist into ~/Library/LaunchAgents
+.IP "-l SET_NAME"
+load the agent
+.IP "-u SET_NAME"
+unload the agent
+.IP "-r SET_NAME"
+run the agent on demand, ignoring the schedule, useful for testing
+.IP "-s SET_NAME"
+query the agent status
+.IP "-p SET_NAME"
+print the contents of the plist file
+.IP "-a"
+produce a list of backup agent plist files in ~/Library/LaunchAgents
+.IP \-h
+show help
+
+.SH EXIT STATUS
+.P
+Returns non-zero if an error is detected, 0 otherwise.
+
+.SH FILES
+.I ~/Library/LaunchAgents/local.HOSTNAME.backup.SET_NAME.plist
+.RS
+The launch agent plist file, installed location.
+.RE
+.I ~/Library/Logs/borg-backup.log
+.RS
+The output log of the backup script that is run by the launch agent.
+.RE
+
+.SH EXAMPLES
+.EX
+.B $ install-agent -D 1 -H 22 -M 15 -i mybackup
+.B $ install-agent -l mybackup
+.EE
+
+.RS
+Creates an agent for backup set named 'mybackup' to run every Monday at 22:15,
+and installs it. The second line loads it into the LaunchAgent system.
+.RE
+
+.EX
+.B $ install-agent -H 3 mybackup
+.EE
+
+.RS
+Creates an agent plist for backup set named 'mybackup', to run hourly at 03:05,
+and shows the plist to the console (does not install).
+.RE
+
+.SH SEE ALSO
+.BR borg-scripts(1),
+.BR borg-backup(1),
+.BR launchctl(1)
