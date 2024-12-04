@@ -267,7 +267,7 @@ cat >${plist_out}<<END
     <string>${agent_name}</string>
     <key>ProgramArguments</key>
       <array>
-        <string>${HOME}/.config/borg-scripts/borg-backup.sh</string>
+        <string>${HOME}/.config/borg-scripts/borg-backup</string>
         <string>-b</string>
         <string>${backup_name}</string>
       </array>

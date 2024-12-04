@@ -11,7 +11,7 @@ Clone this repo or copy the files. I put them in `./config/borg-scripts`
 
 I made an alias to make it easy to run the script, using `backup`.
 
-    alias backup='~/.config/borg-scripts/borg-backup.sh'
+    alias backup='~/.config/borg-scripts/borg-backup'
 
 ## Using
 
@@ -19,11 +19,11 @@ Edit `borg-repo.cfg` to put the correct values for `BORG_NNNN` variables.
 
 Test the script with:
 
-    ./borg-backup.sh -t example
+    ./borg-backup -t example
 
 Which should show a dry run without backing anything up. Or:
 
-    ./borg-backup.sh -b example
+    ./borg-backup -b example
 
 which will perform an actual backup up of these scripts (you can delete the
 test backup later).
@@ -34,22 +34,22 @@ Make your own backup set by copying `borg-set-example.cfg` to your own set
 name. For example `borg-set-mybackup.cfg`. Then edit it to customize it for
 your backup set. Then invoke with:
 
-    ./borg-backup.sh -b mybackup
+    ./borg-backup -b mybackup
 
 ## Launch Agent
 
-There is a script `./install-agent.sh` that will install a LaunchAgent
+There is a script `./install-agent` that will install a LaunchAgent
 (on MacOS) to run a backup on a schedule.
 
 ## Help
 
 Run the script with `-h` to get some help.
 
-    ./borg-backup.sh -h
-    ./install-agent.sh -h
+    ./borg-backup -h
+    ./install-agent -h
 
 Also, there are man pages in `man/` directory. You can install these on your
-system. See the script `install-man.sh`. Then you can use man to see some
+system. See the script `install-man`. Then you can use man to see some
 documentation:
 
     man borg-backup
