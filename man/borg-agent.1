@@ -1,11 +1,11 @@
-.TH "INSTALL-AGENT" "1" "2024-11-30" "borg-scripts 0.1"
+.TH "BORG-AGENT" "1" "2024-11-30" "borg-scripts 0.1"
 
 .SH NAME
 .P
-install-agent \- Install and manage MacOS launch agent for borg backup.
+borg-agent \- Install and manage MacOS launch agent for borg backup.
 
 .SH SYNOPSIS
-.SY install-agent
+.SY borg-agent
 .RB [ \-D
 .IR DAY ]
 .RB [ \-H
@@ -15,7 +15,7 @@ install-agent \- Install and manage MacOS launch agent for borg backup.
 .B \-i
 .I SET_NAME
 .YS
-.SY install-agent
+.SY borg-agent
 .RB [ \-D
 .IR DAY ]
 .RB [ \-H
@@ -24,20 +24,20 @@ install-agent \- Install and manage MacOS launch agent for borg backup.
 .IR MIN ]
 .I SET_NAME
 .YS
-.SY install-agent
+.SY borg-agent
 .RB [\~\-l\~|\~\-u\~|\~\-r\~|\~\-s\~|\~\-p\~]
 .I SET_NAME
 .YS
-.SY install-agent
+.SY borg-agent
 .B \-a
 .YS
-.SY install-agent
+.SY borg-agent
 .B \-h
 .YS
 
 .SH DESCRIPTION
 .P
-.B install-agent
+.B borg-agent
 is a helper script to make it easier to install a borg backup script as a
 LaunchAgent on MacOS. It will generate the necessary plist file, and optionally
 install it. Options are also provided to help with loading, unloading, and
@@ -101,8 +101,8 @@ The output log of the backup script that is run by the launch agent.
 
 .SH EXAMPLES
 .EX
-.B $ install-agent -D 1 -H 22 -M 15 -i mybackup
-.B $ install-agent -l mybackup
+.B $ borg-agent -D 1 -H 22 -M 15 -i mybackup
+.B $ borg-agent -l mybackup
 .EE
 
 .RS
@@ -111,7 +111,7 @@ and installs it. The second line loads it into the LaunchAgent system.
 .RE
 
 .EX
-.B $ install-agent -H 3 mybackup
+.B $ borg-agent -H 3 mybackup
 .EE
 
 .RS
@@ -122,4 +122,5 @@ and shows the plist to the console (does not install).
 .SH SEE ALSO
 .BR borg-scripts(1),
 .BR borg-backup(1),
+.BR borg-logs(1),
 .BR launchctl(1)

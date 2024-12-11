@@ -33,11 +33,11 @@ usage()
 Generate and optionally install, load, unload, and run a MacOS backup agent
 
 Usage:
-  install-agent [-D DAY] [-H HOUR] [-M MIN] [-i] SET_NAME
-  install-agent [-D DAY] [-H HOUR] [-M MIN] SET_NAME
-  install-agent [ -l | -u | -r | -s | -p ] SET_NAME
-  install-agent -a
-  install-agent -h
+  borg-agent [-D DAY] [-H HOUR] [-M MIN] [-i] SET_NAME
+  borg-agent [-D DAY] [-H HOUR] [-M MIN] SET_NAME
+  borg-agent [ -l | -u | -r | -s | -p ] SET_NAME
+  borg-agent -a
+  borg-agent -h
 
 Options:
   SET_NAME      the name of the backup set (required parameter)
