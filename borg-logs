@@ -1,0 +1,323 @@
+#!/bin/sh
+#
+# Copyright 2024 Joseph Kroesche
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# this script is used for setting up a launch agent on macos, so it has
+# macos specific stuff in it and wont work on non-mac
+
+#LOG_PATH="."
+LOG_PATH="${HOME}/Library/Logs"
+LOG_FILE="borg-backup.log"
+TMPFILE="${LOG_FILE}.tmp"
+
+usage()
+{
+    cat <<USAGE
+
+Process borg backup log.
+
+Usage:
+  borg-logs -l
+  borg-logs -x SET_ID [ -e | -m | -a ]
+  borg-logs -d SET_ID
+  borg-logs -p N
+  borg-logs -h
+
+Options:
+  -l            list backup sets appearing in the log, shows SET_ID for each
+  -s SET_ID     summarize specific backup set
+  -x SET_ID     extract specific log data and display to console
+  -e            with -x, show files with errors during backup
+  -m            with -x, show modified files in backup
+  -a            with -x, show added files in backup
+  -d SET_ID     delete backup set data from log file (reduces log size)
+  -p N          prune log keeping N most recent backup sets log data
+  -h            show help
+
+Only one of -e/-m/-a can be used at a time.
+
+USAGE
+}
+
+# scan log for start markers, echo to console
+list_backups()
+{
+    local set_id=1
+    while read logline
+    do
+        case "${logline}" in
+            *+++BACKUP*)
+                echo "${set_id}: ${logline}"
+                set_id=$((${set_id} + 1))
+                ;;
+        esac
+    done < ${LOG_PATH}/${LOG_FILE}
+}
+
+# copy log to tmp file, except lines which match requested backup number
+# after tmp file is finished, copy back to main log file
+delete_backup()
+{
+    local requested_set=$1
+    local set_id=0
+    echo "DELETE: ${requested_set}"
+
+    while read logline
+    do
+        case "${logline}" in
+            *+++BACKUP*)
+                # count backup sets while scanning through log file
+                set_id=$((${set_id} + 1))
+                if [ ${set_id} -eq ${requested_set} ]
+                then
+                    echo "Deleting: ${logline}"
+                else
+                    echo "Keeping:  ${logline}"
+                fi
+                ;;
+        esac
+        # if the current set does not match the requested the copy it out
+        # (keep the wanted sets)
+        # if this is the requested set then nothing is copied,
+        # so those line are "deleted"
+        if [ ${set_id} -ne ${requested_set} ]
+        then
+            echo ${logline} >> ${TMPFILE}
+        fi
+    done < ${LOG_PATH}/${LOG_FILE}
+    cp ${TMPFILE} ${LOG_PATH}/${LOG_FILE}
+    rm ${TMPFILE}
+}
+
+# make a "backup" copy of the backup log
+save_log()
+{
+    cp ${LOG_PATH}/${LOG_FILE} ${LOG_PATH}/${LOG_FILE}.0
+}
+
+# remove all but the last N backups from the log
+prune_backup()
+{
+    local set_id=$((0 - $1))
+
+    # count number of backup sets in the log
+    while read logline
+    do
+        case "${logline}" in
+            *+++BACKUP*)
+                set_id=$((${set_id} + 1))
+                ;;
+        esac
+    done < ${LOG_PATH}/${LOG_FILE}
+    # set_id has the number of backups that need to be deleted
+    # delete 0 first to get rid of any leading cruft
+    delete_backup 0
+    # delete first backup for as many as needed
+    # this is inefficent and should be improved, but works
+    while [ ${set_id} -gt 0 ]
+    do
+        delete_backup 1
+        set_id=$((${set_id} - 1))
+    done
+}
+
+# extract data about a backup, with various options
+# $1 is the set number to extract (numbers from -l)
+# $2 is a filter value
+# * a - print lines of added files
+# * m - print lines of modified files
+# * e - print lines of error files
+# * s - print just a summary of the backup set
+extract_backup()
+{
+    local requested_set=$1
+    local filter=$2
+    local set_id=1
+    local extracting=0
+    local summarize=0
+    local countA=0
+    local countE=0
+    local countM=0
+
+    # IFS is used here to preserve the spacing in the summary table at the
+    # end of the borg log
+    IFS=''
+    while read logline
+    do
+        # looking for the backup set to extract
+        if [ ${extracting} -eq 0 ]
+        then
+            case "${logline}" in
+                *+++BACKUP*)
+                    if [ ${set_id} -eq ${requested_set} ]
+                    then
+                        extracting=1
+                        echo ${logline}
+                    else
+                        set_id=$((${set_id} + 1))
+                    fi
+            esac
+        # backup set is found so extract data from the log file
+        else
+            case "${logline}" in
+                *+++BACKUP*)
+                    echo "Unexpected end of backup set log data"
+                    echo ${logline}
+                    return 0
+                    ;;
+                *---COMPACTING*)
+                    # catch the end of the backup we are extracting
+                    echo ${logline}
+                    # if filter "s" print summary counts of each kind of file
+                    if [ "${filter}" = "s" ]
+                    then
+                        echo "================="
+                        echo "Added:      ${countA}"
+                        echo "Modified:   ${countM}"
+                        echo "Errors:     ${countE}"
+                        echo "================="
+                    fi
+                    # done with extract so exit
+                    return 0
+                    ;;
+                A\ /*)
+                    # sum added files, and print if filter "a" or no filter
+                    countA=$((${countA} + 1))
+                    if [ "${filter}" = "a" ] || [ "${filter}" = "" ]
+                    then
+                        echo ${logline}
+                    fi
+                    ;;
+                E\ /*)
+                    # sum error files, and print if filter "e" or no filter
+                    countE=$((${countE} + 1))
+                    if [ "${filter}" = "e" ] || [ "${filter}" = "" ]
+                    then
+                        echo ${logline}
+                    fi
+                    ;;
+                M\ /*)
+                    # sum modified files, and print if filter "m" or no filter
+                    countM=$((${countM} + 1))
+                    if [ "${filter}" = "m" ] || [ "${filter}" = "" ]
+                    then
+                        echo ${logline}
+                    fi
+                    ;;
+                --------*)
+                    # catch the beginning of the summary section
+                    # if filter "s" then echo remaining lines to console
+                    if [ "${filter}" = "s" ]
+                    then
+                        summarize=1
+                    elif [ "${filter}" = "" ]
+                    then
+                        echo ${logline}
+                    fi
+                    ;;
+                *)
+                    # if no filter, then just print all the lines
+                    if [ "${filter}" = "" ]
+                    then
+                        echo ${logline}
+                    fi
+                    ;;
+            esac
+        fi
+        # once summarize is turned on, echo all remaining lines, which is
+        # the trailing summary from borg
+        if [ ${summarize} -eq 1 ]
+        then
+            echo ${logline}
+        fi
+    done < ${LOG_PATH}/${LOG_FILE}
+}
+
+# process command line
+# if no options are passed at all, then show help
+if [ $# = 0 ]
+then
+    usage
+    exit 0
+fi
+
+# support --help since that is common
+if [ "$1" = "--help" ]
+then
+    usage
+    exit 0
+fi
+
+do_extract=0
+
+while getopts ":lx:emad:p:s:h" opt; do
+    case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        l)
+            list_backups
+            exit 0
+            ;;
+        d)
+            save_log
+            delete_backup ${OPTARG}
+            exit 0
+            ;;
+        x)
+            do_extract=${OPTARG}
+            ;;
+        e)
+            filter="e"
+            ;;
+        m)
+            filter="m"
+            ;;
+        a)
+            filter="a"
+            ;;
+        s)
+            do_extract=${OPTARG}
+            filter="s"
+            ;;
+        p)
+            save_log
+            prune_backup ${OPTARG}
+            exit 0
+            ;;
+        :)
+            echo "Option -${OPTARG} requires an argument"
+            exit 1
+            ;;
+        ?)
+            echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+    esac
+done
+
+if [ ${do_extract} -ne 0 ]
+then
+    extract_backup ${do_extract} ${filter}
+fi
+
+exit 0
