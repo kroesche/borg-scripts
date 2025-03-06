@@ -11,9 +11,12 @@ See [notes about installing borg](#notes-about-installing-borg) below.
 
 Clone this repo or copy the files. I put them in `./config/borg-scripts`
 
-I made an alias to make it easy to run the script, using `backup`.
+I added the following to my aliases file to make it easier to run the scripts
+from anywhere (this is completely optional):
 
-    alias backup='~/.config/borg-scripts/borg-backup'
+    borg-agent='~/.config/borg-scripts/borg-agent'
+    borg-backup='~/.config/borg-scripts/borg-backup'
+    borg-logs='~/.config/borg-scripts/borg-logs'
 
 ## Using
 
@@ -67,6 +70,10 @@ like:
 
     man man/borg-backup.1
 
+## Borg Version
+
+These scripts are assuming the 1.4.x version of borg. I have not tried 2.x yet.
+
 ## MacOS Security
 
 MacOS has security that tries to sandbox apps and programs to have access only
@@ -98,6 +105,9 @@ wanted to authorize "borg" not python3. With this approach, every python3
 program would have full disk access. I think the reason this happens is because
 the MacPorts-installed borgbackup uses the macports managed python3 to run.
 
+*(Added note: I also installed the homebrew version and had the same
+side-effect - Mac security asking me to approve python to have disk access)*
+
 Next, I downloaded the borg prebuilt binary from the
 [releases page](https://github.com/borgbackup/borg/releases). I downloaded the
 single file binary `borg-macos1012` and installed it in `/usr/local/bin` so it
@@ -118,3 +128,10 @@ much immediately.
 BTW in both cases of downloading the binary from the GitHub releases page, I
 had to use `xattr` to remove the quarantine attribute from either the single
 file, or recursively over the unzipped directory structure.
+
+## Apple Silicon (Mx)
+
+The above does not work on a Mac with Apple silicon like an M1, M2, etc. The
+prebuilt binaries only work on x86. Maybe it can be made to work with Rosetta
+but I didn't try that. For my computer that has an M3, I just used the homebrew
+version and had to approve python3 disk access.
