@@ -1,4 +1,4 @@
-.TH "BORG-LOGS" "1" "2024-12-09" "borg-scripts 0.1"
+.TH "BORG-LOGS" "1" "2025-03-05" "borg-scripts 0.1"
 
 .SH NAME
 .P
@@ -7,6 +7,10 @@ borg-logs \- Query and manage borg backup logs.
 .SH SYNOPSIS
 .SY borg-logs
 .B \-l
+.YS
+.SY borg-logs
+.B \-s
+.I SET_ID
 .YS
 .SY borg-logs
 .B \-x
@@ -35,7 +39,11 @@ agent.
 .P
 The first form (\-l) lists all the backups sets found in the log file.
 .P
-The second form extracts log data from the specific
+The second form (\-s) prints a summary of the specific
+.I SET_ID
+backup set.
+.P
+The third form extracts log data from the specific
 .I SET_ID
 set number. This is the set number shown when listing backup sets using
 .B \-l\c
@@ -44,9 +52,9 @@ or files with errors (\-e). Only one of these can be specified at a time. If
 none of these options are used, the all of the lines in the backup set are
 printed.
 .P
-The third form is used to deleted the log data for a specific backup set.
+The fourth form is used to delete the log data for a specific backup set.
 .P
-The fourth form is used to prune the log data for all backup sets except for
+The fifth form is used to prune the log data for all backup sets except for
 the
 .I N
 most recent backup sets.
@@ -54,8 +62,17 @@ most recent backup sets.
 .SH OPTIONS
 .IP SET_ID
 the backup set number, as shown when listing backup sets (using \-l).
+.IP "-s SET_ID"
+print a summary of the specific backup set
 .IP "-x SET_ID"
-extract the specific backup set number from the log and print to console
+extract the specific backup set number from the log and print to console. This
+may print a lot of file names
+.IP "-e"
+when used with -x, only show files with errors
+.IP "-m"
+when used with -x, only show files that were modified
+.IP "-a"
+when used with -x, only show files that were added
 .IP "-d SET_ID"
 delete the specific backup set number from the log
 .IP "-p N"

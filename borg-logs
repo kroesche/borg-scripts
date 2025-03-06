@@ -36,6 +36,7 @@ Process borg backup log.
 
 Usage:
   borg-logs -l
+  borg-logs -s SET_ID
   borg-logs -x SET_ID [ -e | -m | -a ]
   borg-logs -d SET_ID
   borg-logs -p N
