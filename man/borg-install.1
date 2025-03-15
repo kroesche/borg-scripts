@@ -1,0 +1,85 @@
+.TH "BORG-INSTALL" "1" "2025-03-14" "borg-scripts 0.1"
+
+.SH NAME
+.P
+borg-install \- Build and install your own version of borg from source.
+
+.SH SYNOPSIS
+.SY borg-install
+.B \-b
+.YS
+.SY borg-install
+.B \-t
+.YS
+.SY borg-install
+.B \-i
+.YS
+.SY borg-install
+.B \-r
+.YS
+.SY borg-install
+.B \-c
+.YS
+.SY borg-install
+.B \-h
+.YS
+
+.SH DESCRIPTION
+.P
+.B borg-install
+is a script to build your own installation of the borg backup utility from 
+source pulled from GitHub. You may be able to use a prebuilt version of the
+utility, or one supplied by your package manager, and therefore do not need to
+use this script. You should only use this script if you have reason to believe
+the other prebuilt options will not work for your use case. Use of this script
+may also require that certain other tools be available on your system, such as
+git, python3, and pkg-config.
+.P
+The first form (\-b) is used to build the borg backup utility. It will download
+the source code from GitHub, prepare a python build environment, and create a
+python package of the utility.
+.P
+The second form (\-t) performs a simple test on the package built with (\-b).
+.P
+The third form (\-i) attempts to install the borg backup utility package, that
+you built with (\-b), into /usr/local. It is likely you will need to use
+\'sudo\' to use the (\-i) option. If successful, this step will leave \'borg\'
+on your path.
+.P
+The fourth form (\-r) attempts to remove the installation from \-i. It is
+likely you will need to use \'sudo\' for this option.
+.P
+The fifth form (\-c) will remove all of the artifacts that were created by
+(\-b). It cleans your working directory.
+.
+.SH OPTIONS
+.IP "-b"
+download source and build the borg backup utility package
+.IP "-t"
+run a simple test on the package that was built with -b
+.IP "-i"
+installs the package built with -b into /usr/local/share, and creates a
+symlink /usr/local/bin/borg that points there. This option probably requires
+you to use \'sudo\'
+.IP "-r"
+uninstalls what was installed with -i. Also probably requires sudo
+.IP "-c"
+"cleans", removes everything that was downloaded and built by -b
+.IP "-h"
+show help
+.
+.SH EXIT STATUS
+.P
+Returns non-zero if an error is detected, 0 otherwise. In some error cases
+there may be a useful message.
+.SH FILES
+.I /usr/local/share/borg-(platform), /usr/local/bin/borg
+.RS
+Files and directories that are installed by -i.
+.RE
+.
+.SH SEE ALSO
+.BR borg-scripts(1),
+.BR borg-backup(1),
+.BR borg-logs(1),
+.BR borg-agent(1)

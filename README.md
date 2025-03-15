@@ -96,7 +96,7 @@ when you are not around to fix it.
 
 ## Notes About Installing Borg
 
-This applies to MacOS for now. I originally installed borg backup using
+This applies to MacOS (**x86**)for now. I originally installed borg backup using
 [MacPorts](https://www.macports.org). When I ran from command line there was
 no problem reading all the files. This is because I previously gave terminal
 "full disk access" permission. When run under launchd (as a launch agent), I
@@ -133,5 +133,27 @@ file, or recursively over the unzipped directory structure.
 
 The above does not work on a Mac with Apple silicon like an M1, M2, etc. The
 prebuilt binaries only work on x86. Maybe it can be made to work with Rosetta
-but I didn't try that. For my computer that has an M3, I just used the homebrew
-version and had to approve python3 disk access.
+but I didn't try that.
+
+For my first attempt with an M3 Mac I used homebrew to install borg. This
+worked fine when running from the command line. But it required authorizing
+"python3"  to various permissions, repeatedly. When trying to run under
+launchd, I never could figure what permissions to give that would allow it to
+complete a backup. When the backup agent runs, it asks for the various
+permissions each time it runs. It doesn't persist the permissions, unlike my
+x86 Mac that only required granting permissions once. I don't know if this was
+because I was using homebrew instead of MacPorts or the borg prebuilt binary,
+or because there is something different about the sandbox and permimssions
+model on Apple silicon Mac.
+
+### Solution - Build your own
+
+If borg provided a prebuilt package for Mx Macs, then this would not be
+necessary. I created a new script named `borg-install`. This script will
+download  the borg source from GitHub, set up the python build environment,
+and build the package for the host system. This means on M3 Mac, it builds a
+package suitable for running on the M3 Mac.
+
+If you want to try this, see the script `borg-install`. There are comments in
+the script and there is also a man page for it (see the "help" section above if
+you want to use man pages).

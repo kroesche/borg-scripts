@@ -1,0 +1,214 @@
+#!/bin/sh
+#
+# Copyright 2025 Joseph Kroesche
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# DESCRIPTION
+#
+# This script is for installing your own copy of borg backup from the git
+# repository. Why would you want to do this? If you can get borg from your
+# package manager then you should probably do that instead. Here is the reason
+# I made this ...
+#
+# Using borg 1.4.0, there is no prebuilt binary for Macos on Apple silicon.
+# You can get it from homebrew and it works fine from the command line. But if
+# you try to use it from a launchd agent you are constantly getting permission
+# problems. Even if you give borg itself and python full disk access and
+# whatever else it asks for, you get many file permission errors. And, each
+# time the launchd agent runs popups appear asking for permission for python
+# to access something.
+#
+# I believe that the reason for this is that borg installed by homebrew is
+# using homebrew installed python and is not its own self-contained package.
+# Im not sure why but this seems to cause problems with giving permissions when
+# it runs under launchd.
+#
+# Therefore, I created this script which will clone borg from github, use the
+# 1.4.0 branch, and build a self contained package using pyinstaller. Then you
+# have a single exe you can authorize for disk access. You can set up a symlink
+# from the path so this becomes the borg accessible from the path.
+#
+# In order for this script to work you may need to install some additional
+# developer related tools. It needs git, which is usually already included
+# with MacOS. It also needs python3, which you may need to install. It also
+# needs pkg-config. On an M3 Mac using homebrew I had to install:
+#   openssl
+#   lz4
+#   zstd
+#   xxhash
+#
+# On a Mac you can use homebrew to install these tools if needed. MacPorts
+# may work too.
+
+set -e
+
+usage()
+{
+    cat <<USAGE
+
+Clone and build a standalone borg backup executable package.
+You should only use this if you are not able to use pre-packaged borg from
+official releases or your OS package repository.
+
+Usage:
+         borg-install -b
+         borg-install -t
+  [sudo] borg-install -i
+  [sudo] borg-install -r
+         borg-install -c
+
+Options:
+  -b            clone borg and build executable package
+  -t            test the local package by invoking --help and --version
+  -i            copy package to /usr/local/share
+                and symlink to it with /usr/local/bin/borg
+                (probably requires sudo)
+  -r            attempt to undo -i
+                (probably requires sudo)
+  -c            remove all the artifacts including the cloned repo
+  -h            show help
+
+USAGE
+}
+
+INSTALL_PATH=/usr/local/share
+EXE_SYMLINK=/usr/local/bin/borg
+PLATFORM="$(uname -s)-$(uname -m)"
+
+# clone the board repo
+# checkout version 1.4.0
+# setup python environment and build a pyinstaller package
+make_package()
+{
+    # get the borg repo and check out the correct tag
+    git clone https://github.com/borgbackup/borg.git
+    cd borg
+    git checkout 1.4.0
+    # set up the python environment
+    python3 -m venv venv
+    . venv/bin/activate
+    pip install -U pip setuptools wheel
+    pip install -r requirements.d/development.txt
+    pip install -e .
+    # add pyinstaller and build package
+    pip install pyinstaller
+    pyinstaller -D -n borg-${PLATFORM} src/borg/__main__.py
+    deactivate
+    cd ..
+}
+
+# process command line
+# if no options are passed at all, then show help
+if [ $# = 0 ]
+then
+    usage
+    exit 0
+fi
+
+# support --help since that is common
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]
+then
+    usage
+    exit 0
+fi
+
+# build option
+if [ "$1" = "-b" ]
+then
+    make_package
+    exit 0
+fi
+
+# clean option
+if [ "$1" = "-c" ]
+then
+    rm -rf borg
+    exit 0
+fi
+
+# test option
+if [ "$1" = "-t" ]
+then
+    borg/dist/borg-${PLATFORM}/borg-${PLATFORM} --help
+    echo ""
+    borg/dist/borg-${PLATFORM}/borg-${PLATFORM} --version
+    echo "\nIf you see the borg help and the version above, then it's working.\n"
+    exit 0
+fi
+
+# install option
+if [ "$1" = "-i" ]
+then
+    if [ -f "${EXE_SYMLINK}" ]
+    then
+        echo ""
+        echo "It looks like you may already have borg installed on your system."
+        echo "So I am not going to overwrite it. You need to remove the previous"
+        echo "version or figure out how to have both versions."
+        echo ""
+        echo "I found borg here: ${EXE_SYMLINK}"
+        exit 1
+    fi
+    if [ -f "${INSTALL_PATH}/borg-${PLATFORM}" ]
+    then
+        echo ""
+        echo "It looks like you already installed this version of borg. I found"
+        echo "    ${INSTALL_PATH}/borg-${PLATFORM}"
+        echo "You can use the -r option to try to remove the old installation"
+        echo "if that's really what you mean to do."
+        echo ""
+    fi
+    if [ ! -f "borg/dist/borg-${PLATFORM}/borg-${PLATFORM}" ]
+    then
+        echo ""
+        echo "I did not find a package for borg to install. Did you do the -b"
+        echo "step first? And then -t to make sure it works.?"
+        echo ""
+        exit 1
+    fi
+    cp -R borg/dist/borg-${PLATFORM} /usr/local/share/borg-${PLATFORM} ||
+        { echo "Error installing: /usr/local/share/borg-${PLATFORM}\nDo you need sudo?"; exit 1; }
+    ln -s /usr/local/share/borg-${PLATFORM}/borg-${PLATFORM} ${EXE_SYMLINK} ||
+        { echo "Error creating symlink: ${EXE_SYMLINK}\nDo you need sudo?"; exit 1; }
+    echo ""
+    echo "If /usr/local/bin is on your path, you should now be able to type"
+    echo "    borg --help"
+    echo "and see the displayed help. This implies the installation was a success"
+    echo ""
+    exit 0
+fi
+
+# option to remove the installed package
+if [ "$1" = "-r" ]
+then
+    echo ""
+    echo "Attempting to remove: ${EXE_SYMLINK}"
+    rm -f ${EXE_SYMLINK} || { echo "Some error occurred. Do you need sudo?"; exit 1; }
+    echo "Attempting to remove: /usr/local/share/borg-${PLATFORM}"
+    rm -rf /usr/local/share/borg-${PLATFORM} ||
+        { echo "Some error occurred. Do you need sudo?"; exit 1; }
+    exit 0
+fi
+
+# wrong thing was specified so show help
+echo ""
+echo "Bad arguments"
+usage
+exit 1
