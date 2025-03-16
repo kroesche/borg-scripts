@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2024 Joseph Kroesche
+# Copyright 2024-2025 Joseph Kroesche
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the “Software”), to deal
@@ -22,6 +22,8 @@
 #
 # many parts of this script are lifted from borgbackup help docs
 
+VER="0.2"
+
 usage()
 {
     echo ""
@@ -29,10 +31,12 @@ usage()
     echo "  borg-backup -b SET_NAME [-n compact] [-n prune]"
     echo "  borg-backup -t SET_NAME"
     echo "  borg-backup -l"
+    echo "  borg-backup -v"
     echo "  borg-backup -h"
     echo ""
     echo "Options:"
     echo "  -h            show help"
+    echo "  -v            show version"
     echo "  -l            list available backup set configurations"
     echo "  -b SET_NAME   backup the configuration named SET_NAME"
     echo "  -t SET_NAME   dry-run backup of SET_NAME"
@@ -88,10 +92,15 @@ fi
 # otherwise, process the options
 # this does not do a lot of cross checking of options so it is possible
 # to specify nonsense set of options
-while getopts ":lhb:t:n:" opt; do
+while getopts ":lvhb:t:n:" opt; do
     case ${opt} in
         h)
             usage
+            exit 0
+            ;;
+        v)
+            echo "borg-backup from borg-scripts package ${VER}"
+            echo "https://github.com/kroesche/borg-scripts"
             exit 0
             ;;
         l)

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2024 Joseph Kroesche
+# Copyright 2024-2025 Joseph Kroesche
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the “Software”), to deal
@@ -23,6 +23,8 @@
 # this script is used for setting up a launch agent on macos, so it has
 # macos specific stuff in it and wont work on non-mac
 
+VER="0.2"
+
 LOG_PATH="${HOME}/Library/Logs"
 LOG_FILE="borg-backup.log"
 
@@ -37,6 +39,7 @@ Usage:
   borg-agent [-D DAY] [-H HOUR] [-M MIN] SET_NAME
   borg-agent [ -l | -u | -r | -s | -p ] SET_NAME
   borg-agent -a
+  borg-agent -v
   borg-agent -h
 
 Options:
@@ -51,6 +54,7 @@ Options:
   -s            show the status of the agent, using launchctl list
   -p            dump the agent plist
   -a            list backup agents installed in ~/Library/LaunchAgents
+  -v            show version
   -h            show help
 
 The command without -i generates the agent plist file to the console.
@@ -84,10 +88,15 @@ do_run=0
 do_status=0
 do_dump=0
 
-while getopts ":D:H:M:ilursaph" opt; do
+while getopts ":D:H:M:ilursapvh" opt; do
     case ${opt} in
         h)
             usage
+            exit 0
+            ;;
+        v)
+            echo "borg-agent from borg-scripts package ${VER}"
+            echo "https://github.com/kroesche/borg-scripts"
             exit 0
             ;;
         D)

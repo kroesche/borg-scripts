@@ -1,4 +1,4 @@
-.TH "BORG-LOGS" "1" "2025-03-05" "borg-scripts 0.1"
+.TH "BORG-LOGS" "1" "2025-03-15" "borg-scripts 0.2"
 
 .SH NAME
 .P
@@ -24,6 +24,9 @@ borg-logs \- Query and manage borg backup logs.
 .SY borg-logs
 .B \-p
 .I N
+.YS
+.SY borg-logs
+.B \-v
 .YS
 .SY borg-logs
 .B \-h
@@ -77,6 +80,8 @@ when used with -x, only show files that were added
 delete the specific backup set number from the log
 .IP "-p N"
 prune all but the most recent N backup sets from the log
+.IP "-v"
+show version
 .IP "-h"
 show help
 .

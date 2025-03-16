@@ -1,4 +1,4 @@
-.TH "BORG-BACKUP" "1" "2024-12-02" "borg-scripts 0.1"
+.TH "BORG-BACKUP" "1" "2025-03-15" "borg-scripts 0.2"
 
 .SH NAME
 .P
@@ -19,6 +19,9 @@ borg-backup \- Run a backup using 'borg' backup utility, using a config file.
 .YS
 .SY borg-backup
 .B \-l
+.YS
+.SY borg-backup
+.B \-v
 .YS
 .SY borg-backup
 .B \-h
@@ -57,6 +60,8 @@ disable the prune operation at the end of a backup
 disable the compact operation at the end of a backup
 .IP "-l"
 list the available backup set definitions
+.IP \-v
+show version
 .IP \-h
 show help
 .
