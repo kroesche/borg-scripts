@@ -57,7 +57,7 @@
 # On a Mac you can use homebrew to install these tools if needed. MacPorts
 # may work too.
 
-VER="0.2"
+VER="0.3"
 
 set -e
 

@@ -1,0 +1,236 @@
+.\"
+.\" SPDX-License-Identifier: MIT
+.\"
+.\" Copyright 2025 Joseph Kroesche
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining a
+.\" copy of this software and associated documentation files (the “Software”),
+.\" to deal in the Software without restriction, including without limitation
+.\" the rights to use, copy, modify, merge, publish, distribute, sublicense,
+.\" and/or sell copies of the Software, and to permit persons to whom the
+.\" Software is furnished to do so, subject to the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+.\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+.\" DEALINGS IN THE SOFTWARE.
+.\"
+.TH "BORG-VERIFY" "1" "2025-03-30" "borg-scripts 0.3"
+.\" ---------------------------------------------------------------------------
+.SH NAME
+.\" ---------------------------------------------------------------------------
+borg-verify \- Verify integrity of backup made with
+.B borg-backup(1)
+.SH SYNOPSIS
+.SY borg-verify
+.B \-a
+.I ARCHIVE
+.B \-e
+.I EXTRACT_PATH
+.RB [\~\-t
+.IR HOST_ROOT\~]
+.RB [\~\-n\~]
+.SY borg-verify
+.B \-i
+.I EXTRACT_ID
+.B \-t
+.I HOST_ROOT
+.RB [\~\-n\~]
+.YS
+.SY borg-verify
+.B \-l
+.SY borg-verify
+.B \-c
+.I EXTRACT_ID
+.SY borg-verify
+.B \-s
+.I EXTRACT_ID
+.YS
+.SY borg-verify
+.B \-v
+.SY borg-verify
+.B \-h
+.YS
+.\" ---------------------------------------------------------------------------
+.SH DESCRIPTION
+.\" ---------------------------------------------------------------------------
+.P
+.B borg-verify
+is a utility script used to verify the integrity of backups that were made
+using the 'borg' backup utility, or more specifically, the
+.BR borg-backup(1)
+script.
+When used normally, it extracts a portion of an existing backup set from your
+borg repository, and then verifies it against the same files on your host
+computer.
+It uses file checksums to verify they are the same.
+The extracted backup data is cached in a temporary directory until you delete
+it.
+.P
+The first form is used to extract some data from an existing backup archive,
+and optionally verify the extracted file data in integrity against the existing
+file system.
+The
+.I ARCHIVE
+parameter is the name of the borg archive.
+You can use 'borg list' to get a list of the archives in your repository.
+The parameter
+.I EXTRACT_PATH
+is the path within the archive that will be extracted to a local cache.
+Keep in mind that this will perform a restore of the entire path that you
+specify, so it is best to choose a path that represents enough of your backed
+up data to give you confidence, yet not so much that it takes a long time to
+restore, and occupy a large amount of space on the host system.
+If
+.BI \-t \~HOST_ROOT
+is also specified, then the extracted backup data will be verified against
+files in the host filesystem.
+.P
+The second form is used to verify files that were previously extracted using
+.BR \-e .
+Each time a data set is extracted using
+.BR \-e ,
+the extracted data is cached and metadata is saved and given an ID, the
+.IR EXTRACT_ID.
+You can see a list of all the saved data by using the
+.B \-l
+option.
+This option allows you to reverify a backup set that was previously extracted
+without needing to restore from the backup again.
+.P
+The next group of options is used to manage the extracted backup data.
+Use
+.B \-l
+to list all of the data that has been cached and is still stored on your host
+system.
+Use
+.B \-c
+to remove a specific set of data.
+Use this option to clean old data sets that you no longer need. You should run
+this once are satisfied that the backup has been verified, in order to avoid
+accumulating larges sets of restored backups in temporary directories.
+Use
+.B \-s
+to see metadata for the extracted backup data. This option will show the
+temporary location of the cached backup data.
+.
+.\" ---------------------------------------------------------------------------
+.SH OPTIONS
+.\" ---------------------------------------------------------------------------
+.IP "-a ARCHIVE"
+the name of the borg repository archive to extract for verification
+.IP "-e EXTRACT_PATH"
+the path within the archive to extract
+.IP "-t HOST_ROOT"
+the location in the host filesystem to use as a starting point for verification
+.IP "-i EXTRACT_ID"
+the ID of a previously extracted backup set
+.IP "-n"
+perform a "noisy" verification.
+This will show all files, including OK results.
+Without this option, only errors are shown
+.IP "-l"
+list all available extracted backup sets
+.IP "-s EXTRACT_ID"
+show all known details about an extracted backup set
+.IP "-c EXTRACT_ID"
+delete the cached backup data set and related metadata
+.IP "-v"
+show package version
+.IP "-h"
+show help
+.
+.\" ---------------------------------------------------------------------------
+.SH EXIT STATUS
+.\" ---------------------------------------------------------------------------
+.P
+Returns non-zero if an error is detected, 0 otherwise.
+.
+.\" ---------------------------------------------------------------------------
+.SH FILES
+.\" ---------------------------------------------------------------------------
+.I ~/.local/share/borg-scripts
+.P
+The location where the backup extraction metadata is stored. It is best to use
+.B \-l
+and
+.B \-c
+options to manage this data rather than accessing these files directly.
+.
+.\" ---------------------------------------------------------------------------
+.SH NOTES
+.\" ---------------------------------------------------------------------------
+.P
+This tool is not meant as a general restore tool.
+It is meant to assist with verifying backups by extracting a portion of a
+backup archive and then verifying it against the existing file system on the
+host.
+.P
+You should probably choose an extraction path (-e) that is a small subset of
+your entire backup set, but still enough to give you confidence in the
+integrity of your backup.
+The more files in the extraction path, the more data will have to be restored
+and the longer it will take.
+.P
+The extracted backup data is stored in a temporary location that should be
+eventually deleted by the OS.
+However it is probably best practice to just go ahead and clean '-c' the
+extracted backup sets once you are done verifying your backups.
+.
+.\" ---------------------------------------------------------------------------
+.SH EXAMPLES
+.\" ---------------------------------------------------------------------------
+.P
+Suppose a user made a backup of "Users/joe/" which was saved in a remote borg
+repository with archive name "home-2024-12-15T22:15".
+The following command will verify a subset of data located at
+"Users/joe/Documents/records/2024", and verify it against the local filesystem
+root "/".
+This examples shows that all files verified except for a couple of filesystem
+metadata files that are not required to be backed up:
+.P
+.RS
+.EX
+.B $ borg-verify \-a home-2024-12-15T22:15\c
+\-e Users/joe/Documents/records/2024 \-t /
+Generating sums for: / / Users/joe/Documents/records/2024
+Verifying sums ...
+sha256sum:  Users/joe/Documents/records/2024/.DS_Store: No such file or directory
+sha256sum:  Users/joe/Documents/records/2024/receipts/.DS_Store: No such file or directory
+.EE
+.RE
+.P
+List all of the extracted backup sets.
+There is only one in this example:
+.P
+.RS
+.EX
+.B $ borg-verify \-l
+1: 2025-03-28T22:37 | home-2024-12-15T22:15 | Users/joe/Documents/records/2024
+.EE
+.RE
+.P
+Remove ("clean") the extracted backup data and metadata associated with
+.BR ID\~1 .
+.P
+.RS
+.EX
+.B $ borg-verify\~\-c\~1
+Attempting to remove temporary directory of extracted backup ...
+/var/folders/km/fx98npv147z29yfk30y7zvtm0000gn/T/tmp.RkD4ontPRu
+Removing metadata file
+.EE
+.RE
+.\" ---------------------------------------------------------------------------
+.SH SEE ALSO
+.\" ---------------------------------------------------------------------------
+.BR borg-scripts(1),
+.BR borg-backup(1),
+.BR borg-logs(1),
+.BR borg-agent(1)

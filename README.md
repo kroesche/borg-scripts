@@ -17,6 +17,7 @@ from anywhere (this is completely optional):
     borg-agent='~/.config/borg-scripts/borg-agent'
     borg-backup='~/.config/borg-scripts/borg-backup'
     borg-logs='~/.config/borg-scripts/borg-logs'
+    borg-verify='~/.config/borg-scripts/borg-verify'
 
 ## Using
 
@@ -51,6 +52,11 @@ run a backup on a schedule.
 There is a script `./borg-logs` to help with examining and managing the log
 file.
 
+## Verify Backups
+
+Besides using `borg --check` which you should do on occassion, there is a
+script, `./borg-verify` to help with verifying the integrity of a backup.
+
 ## Help
 
 Run the script with `-h` to get some help.
@@ -58,6 +64,7 @@ Run the script with `-h` to get some help.
     ./borg-backup -h
     ./borg-agent -h
     ./borg-logs -h
+    ./borg-verify -h
 
 Also, there are man pages in `man/` directory. You can install these on your
 system. See the script `install-man`. Then you can use man to see some
@@ -119,7 +126,7 @@ interpreter every time it is invoked. This goes into a temporary folder and
 disappears when the program terminates.
 
 Then, from the releases page, I downloaded `borg-macos1012.tgz`, and unzipped
-it. This is the same program, but in a set of folder instead of being all
+it. This is the same program, but in a set of folders instead of being all
 compressed into a single file. In this case, I put the unzipped `borg-dir` into
 `/usr/local/share`, and then symlinked `/usr/local/bin/borg` to the `borg.exe`
 in the borg-dir folder. Now I still have `borg` on my path but it runs pretty
@@ -150,8 +157,8 @@ model on Apple silicon Mac.
 
 If borg provided a prebuilt package for Mx Macs, then this would not be
 necessary. I created a new script named `borg-install`. This script will
-download  the borg source from GitHub, set up the python build environment,
-and build the package for the host system. This means on M3 Mac, it builds a
+download the borg source from GitHub, set up the python build environment, and
+build the package for the host system. This means on M3 Mac, it builds a
 package suitable for running on the M3 Mac.
 
 If you want to try this, see the script `borg-install`. There are comments in

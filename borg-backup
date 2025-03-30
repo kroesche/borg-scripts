@@ -22,7 +22,7 @@
 #
 # many parts of this script are lifted from borgbackup help docs
 
-VER="0.2"
+VER="0.3"
 
 usage()
 {

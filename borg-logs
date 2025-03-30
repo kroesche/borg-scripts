@@ -23,7 +23,7 @@
 # this script is used for setting up a launch agent on macos, so it has
 # macos specific stuff in it and wont work on non-mac
 
-VER="0.2"
+VER="0.3"
 
 #LOG_PATH="."
 LOG_PATH="${HOME}/Library/Logs"
