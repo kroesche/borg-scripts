@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #
 # SPDX-License-Identifier: MIT
 #
@@ -90,7 +90,7 @@ generate_sums()
     cd ${root}
     rm -f ${sumfile}
     echo "Generating sums for: ${root} / ${sumpath}"
-    find ${sumpath} -type f -exec sha256sum "{}" >> ${sumfile} \;
+    find "${sumpath}" -type f -exec sha256sum "{}" >> ${sumfile} \;
     cd ${saved_cwd}
 }
 
@@ -162,8 +162,8 @@ extract_backup()
     cfgid=$(create_cfg_file_id)
     cfgfile=$(cfg_filename_from_id ${cfgid})
     echo "TIMESTAMP=${timestamp}" > ${cfgfile}
-    echo "ARCHIVE=${archive_name}" >> ${cfgfile}
-    echo "EXTRACT_PATH=${extract_path}" >> ${cfgfile}
+    echo "ARCHIVE=\"${archive_name}\"" >> ${cfgfile}
+    echo "EXTRACT_PATH=\"${extract_path}\"" >> ${cfgfile}
     echo "TEMPDIR=${tempdir}" >> ${cfgfile}
     extract_id=${cfgid}
     echo "Extracting borg backup archive: ${archive_name} ; path: ${extract_path}"
@@ -188,7 +188,7 @@ extract_backup()
         echo "Error switching to temporary directory for archive extraction"
         exit 1
     fi
-    borg extract ::${archive_name} ${extract_path}
+    borg extract ::${archive_name} "${extract_path}"
 }
 
 # list all of the saved test configurations
@@ -324,7 +324,7 @@ then
         echo "Extracting a backup using the following ..."
         echo "Archive:      ${archive}"
         echo "Extract path: ${extract_path}"
-        extract_backup ${archive} ${extract_path}
+        extract_backup ${archive} "${extract_path}"
     else
         echo "In order to extract (-e) you must specify an archive (-a)"
         exit 1
@@ -348,7 +348,7 @@ then
     then
         cfgfile=$(cfg_filename_from_id ${extract_id})
         . ${cfgfile}
-        generate_sums ${host_root} ${EXTRACT_PATH} ${TEMPDIR}/sums.txt
+        generate_sums ${host_root} "${EXTRACT_PATH}" ${TEMPDIR}/sums.txt
         verify_sums ${TEMPDIR} ${TEMPDIR}/sums.txt ${noisy}
         exit $?
     else
