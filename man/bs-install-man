@@ -26,7 +26,7 @@
 #
 # If you dont want to install them, you can just view them by passing the
 # file name, like:
-#     man borg-backup.1
+#     man bs-backup.1
 
 # you can also use this script to attempt to remove the previously installed
 # man pages, using -r
@@ -35,12 +35,12 @@ usage()
 {
     cat <<USAGE
 
-Install or remove man pages for borg-scripts. You will most likely need to
-use "sudo".
+Install or remove man pages for the bs-scripts package. You will most likely
+need to use "sudo".
 
 Usage:
-  sudo install-man -i
-  sudo install-man -r
+  sudo bs-install-man -i
+  sudo bs-install-man -r
 
 Options:
   -i            install man pages to /usr/local/man

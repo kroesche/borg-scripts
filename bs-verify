@@ -30,13 +30,13 @@ usage() {
 Verify borg backups.
 
 Usage:
-  borg-verify -a ARCHIVE -e EXTRACT_PATH [ -t HOST_ROOT ] [ -n ]
-  borg-verify -i EXTRACT_ID -t HOST_PATH [ -n ]
-  borg-verify -l
-  borg-verify -s EXTRACT_ID
-  borg-verify -c EXTRACT_ID
-  borg-verify -v
-  borg-verify -h
+  bs-verify -a ARCHIVE -e EXTRACT_PATH [ -t HOST_ROOT ] [ -n ]
+  bs-verify -i EXTRACT_ID -t HOST_PATH [ -n ]
+  bs-verify -l
+  bs-verify -s EXTRACT_ID
+  bs-verify -c EXTRACT_ID
+  bs-verify -v
+  bs-verify -h
 
 Options:
   -a ARCHIVE        name of archive for extraction (use 'borg list')
@@ -53,7 +53,7 @@ Options:
 
 Example:
 
-  borg-verify -a home-20254-12-15T22:15 -e Users/joe/Documents/records -t /
+  bs-verify -a home-20254-12-15T22:15 -e Users/joe/Documents/records -t /
 
 See the man page for more details and examples.
 
@@ -61,12 +61,12 @@ USAGE
 }
 
 # repo configuration, path to repo and credentials
-# assumes in borg-scripts config directory
-REPO_CONFIG="borg-repo.cfg"
+# assumes in bs-scripts config directory
+REPO_CONFIG="bs-repo.cfg"
 
 # where extract configurations are saved
 # TODO make this configurable
-CFG_PATH=~/.local/share/borg-scripts
+CFG_PATH=~/.local/share/bs-scripts
 
 set -e
 
@@ -170,7 +170,7 @@ extract_backup()
 
     # source the repo config to get the repo location and credentials
     # these just go into the environment and are used by borg
-    # this step assumes we are in the borg-scripts config directory, which
+    # this step assumes we are in the bs-scripts config directory, which
     # should have happened before this fn was called
     if [ -f ${REPO_CONFIG} ]
     then
@@ -271,7 +271,7 @@ while getopts ":a:e:t:i:nc:s:lvh" opt; do
             exit 0
             ;;
         v)
-            echo "borg-verify from borg-scripts package ${VER}"
+            echo "bs-verify from bs-scripts package ${VER}"
             echo "https://github.com/kroesche/borg-scripts"
             exit 0
             ;;

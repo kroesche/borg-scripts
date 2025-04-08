@@ -29,23 +29,23 @@ VER="0.3"
 
 #LOG_PATH="."
 LOG_PATH="${HOME}/Library/Logs"
-LOG_FILE="borg-backup.log"
+LOG_FILE="bs-backup.log"
 TMPFILE="${LOG_FILE}.tmp"
 
 usage()
 {
     cat <<USAGE
 
-Process borg backup log.
+Process bs-backup log.
 
 Usage:
-  borg-logs -l
-  borg-logs -s SET_ID
-  borg-logs -x SET_ID [ -e | -m | -a ]
-  borg-logs -d SET_ID
-  borg-logs -p N
-  borg-logs -v
-  borg-logs -h
+  bs-logs -l
+  bs-logs -s SET_ID
+  bs-logs -x SET_ID [ -e | -m | -a ]
+  bs-logs -d SET_ID
+  bs-logs -p N
+  bs-logs -v
+  bs-logs -h
 
 Options:
   -l            list backup sets appearing in the log, shows SET_ID for each
@@ -282,7 +282,7 @@ while getopts ":lx:emad:p:s:hv" opt; do
             exit 0
             ;;
         v)
-            echo "borg-logs from borg-scripts package ${VER}"
+            echo "bs-logs from bs-scripts package ${VER}"
             echo "https://github.com/kroesche/borg-scripts"
             exit 0
             ;;

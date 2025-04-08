@@ -7,75 +7,89 @@ or vorta (or whatever) for reasons.
 
 See [notes about installing borg](#notes-about-installing-borg) below.
 
+## Naming
+
+Naming a project is hard, especially if it needs to live in the namespace of
+other utilities on your system. I originally named these scripts like
+`borg-backup` but the wording of everything got confusing because it is not the
+same as Borg the backup program, even though it uses it.
+
+I decided to use a namespace `bs` which could stand for "borg scripts" or maybe
+"backup strategy". So now everything is prefixed with `bs-` which hopefully
+avoids confustion with naming everything "borg" ald leaves script names unique
+enough to avoid namespace collision. I call the entire package "bs-scripts".
+
 ## Installing
 
-Clone this repo or copy the files. I put them in `./config/borg-scripts`
+Clone this repo or copy the files. I put them in `./config/bs-scripts`
 
 I added the following to my aliases file to make it easier to run the scripts
 from anywhere (this is completely optional):
 
-    borg-agent='~/.config/borg-scripts/borg-agent'
-    borg-backup='~/.config/borg-scripts/borg-backup'
-    borg-logs='~/.config/borg-scripts/borg-logs'
-    borg-verify='~/.config/borg-scripts/borg-verify'
+    bs-agent='~/.config/bs-scripts/bs-agent'
+    bs-backup='~/.config/bs-scripts/bs-backup'
+    bs-logs='~/.config/bs-scripts/bs-logs'
+    bs-verify='~/.config/bs-scripts/bs-verify'
 
 ## Using
 
-Edit `borg-repo.cfg` to put the correct values for `BORG_NNNN` variables.
+Edit `bs-repo.cfg` to put the correct values for `BORG_NNNN` variables.
 
 Test the script with:
 
-    ./borg-backup -t example
+    ./bs-backup -t example
 
 Which should show a dry run without backing anything up. Or:
 
-    ./borg-backup -b example
+    ./bs-backup -b example
 
 which will perform an actual backup up of these scripts (you can delete the
 test backup later).
 
 ## Customize
 
-Make your own backup set by copying `borg-set-example.cfg` to your own set
-name. For example `borg-set-mybackup.cfg`. Then edit it to customize it for
+Make your own backup set by copying `bs-set-example.cfg` to your own set
+name. For example `bs-set-mybackup.cfg`. Then edit it to customize it for
 your backup set. Then invoke with:
 
-    ./borg-backup -b mybackup
+    ./bs-backup -b mybackup
 
 ## Launch Agent
 
-There is a script `./borg-agent` that will install a LaunchAgent (on MacOS) to
+There is a script `./bs-agent` that will install a LaunchAgent (on MacOS) to
 run a backup on a schedule.
 
 ## Logs
 
-There is a script `./borg-logs` to help with examining and managing the log
+There is a script `./bs-logs` to help with examining and managing the log
 file.
 
 ## Verify Backups
 
 Besides using `borg --check` which you should do on occassion, there is a
-script, `./borg-verify` to help with verifying the integrity of a backup.
+script, `./bs-verify` to help with verifying the integrity of a backup.
 
 ## Help
 
 Run the script with `-h` to get some help.
 
-    ./borg-backup -h
-    ./borg-agent -h
-    ./borg-logs -h
-    ./borg-verify -h
+    ./bs-backup -h
+    ./bs-agent -h
+    ./bs-logs -h
+    ./bs-verify -h
 
 Also, there are man pages in `man/` directory. You can install these on your
-system. See the script `install-man`. Then you can use man to see some
+system. See the script `bs-install-man`. Then you can use man to see some
 documentation:
 
-    man borg-backup
+    man bs-backup
 
 Or if you don't want to install the man pages, you can just view them directly
 like:
 
-    man man/borg-backup.1
+    man man/bs-backup.1
+
+There is a top level man page: `man bs-scripts`
 
 ## Borg Version
 
@@ -94,7 +108,7 @@ access to my user folders, so that it can read all the files to back them up.
 To make sure this is not going to cause a problem for the launch agent, after
 installing a launch agent for a backup set, you can do a test run.
 
-    borg-agent -r mybackup
+    bs-agent -r mybackup
 
 This will cause it to start running the backup set under launchd, and you will
 then see if you are prompted for any access permissions. It's better to get it
@@ -156,11 +170,11 @@ model on Apple silicon Mac.
 ### Solution - Build your own
 
 If borg provided a prebuilt package for Mx Macs, then this would not be
-necessary. I created a new script named `borg-install`. This script will
+necessary. I created a new script named `bs-install-borg`. This script will
 download the borg source from GitHub, set up the python build environment, and
 build the package for the host system. This means on M3 Mac, it builds a
 package suitable for running on the M3 Mac.
 
-If you want to try this, see the script `borg-install`. There are comments in
-the script and there is also a man page for it (see the "help" section above if
-you want to use man pages).
+If you want to try this, see the script `bs-install-borg`. There are comments
+in the script and there is also a man page for it (see the "help" section above
+if you want to use man pages).

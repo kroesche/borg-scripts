@@ -72,11 +72,11 @@ You should only use this if you are not able to use pre-packaged borg from
 official releases or your OS package repository.
 
 Usage:
-         borg-install -b
-         borg-install -t
-  [sudo] borg-install -i
-  [sudo] borg-install -r
-         borg-install -c
+         bs-install-borg -b
+         bs-install-borg -t
+  [sudo] bs-install-borg -i
+  [sudo] bs-install-borg -r
+         bs-install-borg -c
 
 Options:
   -b            clone borg and build executable package
@@ -137,7 +137,7 @@ fi
 # version option
 if [ "$1" = "-v" ]
 then
-    echo "borg-install from borg-scripts package ${VER}"
+    echo "bs-install-borg from bs-scripts package ${VER}"
     echo "https://github.com/kroesche/borg-scripts"
     exit 0
 fi

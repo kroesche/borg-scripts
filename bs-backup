@@ -30,11 +30,11 @@ usage()
 {
     echo ""
     echo "Usage:"
-    echo "  borg-backup -b SET_NAME [-n compact] [-n prune]"
-    echo "  borg-backup -t SET_NAME"
-    echo "  borg-backup -l"
-    echo "  borg-backup -v"
-    echo "  borg-backup -h"
+    echo "  bs-backup -b SET_NAME [-n compact] [-n prune]"
+    echo "  bs-backup -t SET_NAME"
+    echo "  bs-backup -l"
+    echo "  bs-backup -v"
+    echo "  bs-backup -h"
     echo ""
     echo "Options:"
     echo "  -h            show help"
@@ -57,11 +57,11 @@ list()
     echo ""
     echo "Available backup configurations"
     echo "-------------------------------"
-    for cfg in borg-set-*
+    for cfg in bs-set-*
     do
         BACKUP_SET_DESCRIPTION=""
         . ./$cfg
-        setname=$(echo $cfg | sed -E "s/borg-set-(.*)\.cfg/\1/")
+        setname=$(echo $cfg | sed -E "s/bs-set-(.*)\.cfg/\1/")
         printf "%-16s %s\n" "${setname}" "${BACKUP_SET_DESCRIPTION}"
     done
     echo ""
@@ -101,7 +101,7 @@ while getopts ":lvhb:t:n:" opt; do
             exit 0
             ;;
         v)
-            echo "borg-backup from borg-scripts package ${VER}"
+            echo "bs-backup from bs-scripts package ${VER}"
             echo "https://github.com/kroesche/borg-scripts"
             exit 0
             ;;
@@ -167,7 +167,7 @@ else
     exit 1
 fi
 
-info "borg-backup script started"
+info "bs-backup script started"
 
 # determine the path to the borg executable
 # BORGBIN environment variable can be used to pass in the path.
@@ -200,12 +200,12 @@ info "using set name: ${setname}, action: ${action}"
 # It should define BORG_REPO and BORG_PASSPHRASE or BORG_PASSCOMMAND
 # these should be exports so the file can be sourced
 #
-repo_config_file="borg-repo.cfg"        # BORG_REPO, etc
+repo_config_file="bs-repo.cfg"        # BORG_REPO, etc
 
 # common exclude is a list of files/folders to exclude using the borg
 # pattern style. one exclusion per line in the file
 #
-common_exclude_file="exclude-common.txt"
+common_exclude_file="bs-exclude-common.txt"
 
 # set_config is the config file for the specific backup set
 # it is of the form:
@@ -224,7 +224,7 @@ common_exclude_file="exclude-common.txt"
 # * BACKUP_SOURCE_PATHS must have at least one path, but can have more than one
 # * the file can have comments on lines by themselves
 #
-set_config_file="borg-set-${setname}.cfg"
+set_config_file="bs-set-${setname}.cfg"
 
 # make sure backup set is valid based on existence of a config file
 if [ -f "${set_config_file}" ]

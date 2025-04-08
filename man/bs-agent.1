@@ -21,16 +21,16 @@
 .\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 .\" DEALINGS IN THE SOFTWARE.
 .\"
-.TH "BORG-AGENT" "1" "2025-03-15" "borg-scripts 0.3"
+.TH "BS-AGENT" "1" "2025-03-15" "bs-scripts 0.3"
 .\" ---------------------------------------------------------------------------
 .SH NAME
 .\" ---------------------------------------------------------------------------
 .P
-borg-agent \- Install and manage MacOS launch agent for borg backup.
+bs-agent \- Install and manage MacOS launch agent for borg backup.
 .\" ---------------------------------------------------------------------------
 .SH SYNOPSIS
 .\" ---------------------------------------------------------------------------
-.SY borg-agent
+.SY bs-agent
 .RB [ \-D
 .IR DAY ]
 .RB [ \-H
@@ -40,7 +40,7 @@ borg-agent \- Install and manage MacOS launch agent for borg backup.
 .B \-i
 .I SET_NAME
 .YS
-.SY borg-agent
+.SY bs-agent
 .RB [ \-D
 .IR DAY ]
 .RB [ \-H
@@ -49,24 +49,24 @@ borg-agent \- Install and manage MacOS launch agent for borg backup.
 .IR MIN ]
 .I SET_NAME
 .YS
-.SY borg-agent
+.SY bs-agent
 .RB [\~\-l\~|\~\-u\~|\~\-r\~|\~\-s\~|\~\-p\~]
 .I SET_NAME
 .YS
-.SY borg-agent
+.SY bs-agent
 .B \-a
 .YS
-.SY borg-agent
+.SY bs-agent
 .B \-v
 .YS
-.SY borg-agent
+.SY bs-agent
 .B \-h
 .YS
 .\" ---------------------------------------------------------------------------
 .SH DESCRIPTION
 .\" ---------------------------------------------------------------------------
 .P
-.B borg-agent
+.B bs-agent
 is a helper script to make it easier to install a borg backup script as a
 LaunchAgent on MacOS. It will generate the necessary plist file, and optionally
 install it. Options are also provided to help with loading, unloading, and
@@ -124,7 +124,7 @@ Returns non-zero if an error is detected, 0 otherwise.
 .RS
 The launch agent plist file, installed location.
 .RE
-.I ~/Library/Logs/borg-backup.log
+.I ~/Library/Logs/bs-backup.log
 .RS
 The output log of the backup script that is run by the launch agent.
 .RE
@@ -132,15 +132,15 @@ The output log of the backup script that is run by the launch agent.
 .SH EXAMPLES
 .\" ---------------------------------------------------------------------------
 .EX
-.B $ borg-agent -D 1 -H 22 -M 15 -i mybackup
-.B $ borg-agent -l mybackup
+.B $ bs-agent -D 1 -H 22 -M 15 -i mybackup
+.B $ bs-agent -l mybackup
 .EE
 .RS
 Creates an agent for backup set named 'mybackup' to run every Monday at 22:15,
 and installs it. The second line loads it into the LaunchAgent system.
 .RE
 .EX
-.B $ borg-agent -H 3 mybackup
+.B $ bs-agent -H 3 mybackup
 .EE
 .RS
 Creates an agent plist for backup set named 'mybackup', to run hourly at 03:05,
@@ -149,8 +149,8 @@ and shows the plist to the console (does not install).
 .\" ---------------------------------------------------------------------------
 .SH SEE ALSO
 .\" ---------------------------------------------------------------------------
-.BR borg-scripts(1),
-.BR borg-backup(1),
-.BR borg-logs(1),
-.BR borg-verify(1),
+.BR bs-scripts(1),
+.BR bs-backup(1),
+.BR bs-logs(1),
+.BR bs-verify(1),
 .BR launchctl(1)
