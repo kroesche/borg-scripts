@@ -102,7 +102,7 @@ while getopts ":lvhb:t:n:" opt; do
             ;;
         v)
             echo "bs-backup from bs-scripts package ${VER}"
-            echo "https://github.com/kroesche/borg-scripts"
+            echo "https://github.com/kroesche/bs-scripts"
             exit 0
             ;;
         l)
