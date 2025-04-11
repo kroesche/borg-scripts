@@ -37,7 +37,7 @@ test_start()
 # compare actual to expected results strings
 # $1 - actual
 # $2 - expected
-# return 0 if matches, 1 if not
+# set global errcode if error occurs
 test_result_matches()
 {
     local expected actual
@@ -46,20 +46,20 @@ test_result_matches()
     if [ "${actual}" = "${expected}" ]
     then
         printf "OK\n"
-        return 0
     else
         printf "ERROR\n"
         printf "  vvvvvvvvvvvvvvvv\n"
         printf "  expected=\n[${expected}]\n"
         printf "  actual=\n[${actual}]\n"
         printf "  ^^^^^^^^^^^^^^^^\n"
-        return 1
+        errcode=1
     fi
 }
 
 # checks if result strings contain another string
 # $1 - actual string
 # $2 - contains string
+# set global errcode if error occurs
 test_result_contains()
 {
     local contains actual
@@ -70,14 +70,13 @@ test_result_contains()
     if [ ${ret} -eq 0 ]
     then
         printf "OK\n"
-        return 0
     else
         printf "ERROR\n"
         printf "  vvvvvvvvvvvvvvvv\n"
         printf "  search_for=\n[${contains}]\n"
         printf "  actual=\n[${actual}]\n"
         printf "  ^^^^^^^^^^^^^^^^\n"
-        return 1
+        errcode=1
     fi
 }
 
@@ -92,13 +91,12 @@ test_true()
     if [ ${result} -eq 0 ]
     then
         printf "OK\n"
-        return 0
     else
         printf "ERROR\n"
         printf "  vvvvvvvvvvvvvvvv\n"
         printf "  ${msg}\n"
         printf "  ^^^^^^^^^^^^^^^^\n"
-        return 1
+        errcode=1
     fi
 }
 
@@ -113,13 +111,12 @@ test_false()
     if [ ${result} -ne 0 ]
     then
         printf "OK\n"
-        return 0
     else
         printf "ERROR\n"
         printf "  vvvvvvvvvvvvvvvv\n"
         printf "  ${msg}\n"
         printf "  ^^^^^^^^^^^^^^^^\n"
-        return 1
+        errcode=1
     fi
 }
 
@@ -130,6 +127,7 @@ clean()
     rm -rf ${TEST_REPO}
     rm -rf ${TEST_FILES}
     rm -rf ${TEST_DIR}/testconfig
+    rm -rf ${TEST_DIR}/xdgconfig
     rm -f "${TEST_DIR}/bs-repo.cfg"
     rm -f "${TEST_DIR}/bs-set-test.cfg"
     rm -f "${TEST_DIR}/bs-exclude-common.cfg"
@@ -198,7 +196,7 @@ borg init --encryption none ${TEST_REPO}
 
 ########################################
 #
-# BASIC/VERSION TEST
+# BS-BACKUP BASIC/VERSION TEST
 #
 # Invoke -V and make sure script runs and returns expected version
 #
@@ -214,13 +212,45 @@ test_result_matches "${actual}" "${expected}"
 
 ########################################
 #
+# BS-LOGS BASIC/VERSION TEST
+#
+# Invoke -V and make sure script runs and returns expected version
+#
+########################################
+test_start "bs-logs basic version test"
+expected="bs-logs from bs-scripts package ${TEST_VER}
+https://github.com/kroesche/bs-scripts"
+actual=$(../bs-logs -V)
+ret=$?
+test_true ${ret} "unexpected error code: ${ret}"
+test_start "  check correct output"
+test_result_matches "${actual}" "${expected}"
+
+########################################
+#
 # CONFIG FROM SCRIPTS DIR
 #
 # Try -l, verify scripts dir is used
 #
 ########################################
+
+# BS-BACKUP
+
 test_start "bs-backup check config location, scripts dir"
 actual=$(../bs-backup -l -v)
+ret=$?
+test_true ${ret} "unexpected error code: ${ret}"
+test_start "  verify scripts dir config"
+contains="Using scripts dir"
+test_result_contains "${actual}" "${contains}"
+test_start "  verify scripts path"
+contains="$(realpath $(pwd)/..)/bs-repo.cfg"
+test_result_contains "${actual}" "${contains}"
+
+# BS-LOGS
+
+test_start "bs-logs check config location, scripts dir"
+actual=$(../bs-logs -l -v)
 ret=$?
 test_true ${ret} "unexpected error code: ${ret}"
 test_start "  verify scripts dir config"
@@ -235,6 +265,8 @@ test_result_contains "${actual}" "${contains}"
 # RUN BACKUP WITHOUT PROPER CONFIG
 #
 # Try -b, should fail due to missing config
+# This falls back to scripts dir for config, but BORG_REPO
+# is not defined there so that is why there is an error
 #
 ########################################
 test_start "bs-backup with missing config"
@@ -289,6 +321,52 @@ expected='
 Available backup configurations
 -------------------------------
 test             Test custom backup set'
+test_result_matches "${actual}" "${expected}"
+
+########################################
+#
+# CHECK XDG_CONFIG_HOME DEFINED CONFIG DIR
+#
+# create repo cfg and test set in a separate config dir
+# - verify config location being used
+# - -l switch show correct list
+#
+########################################
+mkdir -p xdgconfig/bs-scripts
+echo "Generating configuration file in XDG config dir"
+# only need BORG_REPO and not any credentials since
+# encryption is not used for the test repo
+cat << REPO_CFG > xdgconfig/bs-scripts/bs-repo.cfg
+BORG_REPO="${TEST_REPO}"
+REPO_CFG
+
+echo "Generating test set configuration in xdg test dir"
+cat << REPO_CFG > xdgconfig/bs-scripts/bs-set-test.cfg
+BACKUP_SET_DESCRIPTION="Test xdg custom backup set"
+BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
+BACKUP_SOURCE_PATHS="$(pwd)/testfiles"
+REPO_CFG
+
+test_start "bs-backup xdg config location"
+actual=$(XDG_CONFIG_HOME="$(pwd)/xdgconfig" ../bs-backup -l -v)
+ret=$?
+test_true ${ret} "unexpected error code: ${ret}"
+test_start "  verify xdg config dir"
+contains="Using XDG_CONFIG_HOME for configuration"
+test_result_contains "${actual}" "${contains}"
+test_start "  verify scripts path"
+contains="$(realpath $(pwd)/xdgconfig)/bs-scripts/bs-repo.cfg"
+test_result_contains "${actual}" "${contains}"
+
+test_start "list test sets in xdg config location"
+actual=$(XDG_CONFIG_HOME="$(pwd)/xdgconfig" ../bs-backup -l)
+ret=$?
+test_true ${ret} "unexpected error code: ${ret}"
+test_start "  verify list items"
+expected='
+Available backup configurations
+-------------------------------
+test             Test xdg custom backup set'
 test_result_matches "${actual}" "${expected}"
 
 ########################################
@@ -359,6 +437,27 @@ rc0cnt=$(echo "${actual}" | grep "terminating with success status, rc 0"|wc -l|x
 test ${rc0cnt} -eq 2
 ret=$?
 test_true ${ret} "expected 2 rc 0 lines, found: ${rc0cnt}"
+
+################################################################################
+#
+# END OF SCRIPT
+# PROCESS RESULT
+#
+################################################################################
+echo ""
+echo "----------------------------"
+if [ ${errcode} -ne 0 ]
+then
+    echo "Test finished with errors"
+else
+    echo "Test finished with no errors"
+fi
+echo "----------------------------"
+exit ${errcode}
+
+
+
+
 
 
 exit 0

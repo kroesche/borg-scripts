@@ -27,6 +27,8 @@
 
 VER="0.3"
 
+verbose=0
+
 #LOG_PATH="."
 LOG_PATH="${HOME}/Library/Logs"
 LOG_FILE="bs-backup.log"
@@ -45,6 +47,7 @@ Usage:
   bs-logs -d SET_ID
   bs-logs -p N
   bs-logs -v
+  bs-logs -V
   bs-logs -h
 
 Options:
@@ -56,7 +59,8 @@ Options:
   -a            with -x, show added files in backup
   -d SET_ID     delete backup set data from log file (reduces log size)
   -p N          prune log keeping N most recent backup sets log data
-  -v            show version
+  -v            verbose - show extra debugging messages
+  -V            show version
   -h            show help
 
 Only one of -e/-m/-a can be used at a time.
@@ -284,16 +288,19 @@ fi
 
 do_extract=0
 
-while getopts ":lx:emad:p:s:hv" opt; do
+while getopts ":lx:emad:p:s:hvV" opt; do
     case ${opt} in
         h)
             usage
             exit 0
             ;;
-        v)
+        V)
             echo "bs-logs from bs-scripts package ${VER}"
             echo "https://github.com/kroesche/bs-scripts"
             exit 0
+            ;;
+        v)
+            verbose=1
             ;;
         l)
             list_backups
