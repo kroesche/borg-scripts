@@ -21,15 +21,27 @@ enough to avoid namespace collision. I call the entire package "bs-scripts".
 
 ## Installing
 
-Clone this repo or copy the files. I put them in `./config/bs-scripts`
+Get the package by cloning the repo, or downloading the files or a zip blob
+from GitHub.
 
-I added the following to my aliases file to make it easier to run the scripts
-from anywhere (this is completely optional):
+You can then just use the scripts directly from wherever you put them. Or you
+can use the installer script `bs-install` to install them somewhere on your
+system. The installer script has help (`-h`). Here is an example if you are in
+the same directory as the downloaded/cloned package:
 
-    bs-agent='~/.config/bs-scripts/bs-agent'
-    bs-backup='~/.config/bs-scripts/bs-backup'
-    bs-logs='~/.config/bs-scripts/bs-logs'
-    bs-verify='~/.config/bs-scripts/bs-verify'
+    sudo ./bs-install -s . -d /usr/bin/local -m
+
+This will copy the scripts from your CWD to `/usr/local/bin`. This is good
+place because it is probably already on your PATH and makes the backup scripts
+available to all account. But it probably requires `sudo` privelege escalation
+to write files there.
+
+The `-m` is optional and will install man pages.
+
+Other locations you could use (and don't need sudo):
+
+- `~/bin`
+- `~/.local/bin`
 
 ## Using
 

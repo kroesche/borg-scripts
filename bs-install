@@ -1,0 +1,253 @@
+#!/bin/sh
+#
+# SPDX-License-Identifier: MIT
+#
+# Copyright 2024-2025 Joseph Kroesche
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+#
+# This script is used to install bs-scripts into a user preferred location, and
+# to generate template config files.
+#
+
+VER="0.3"
+
+scripts_list="bs-backup
+bs-agent
+bs-logs
+bs-verify
+"
+
+usage()
+{
+    cat << USAGE
+
+Install bs-scripts package on user sysem.
+
+Usage:
+    [sudo]  bs-install -s SOURCE_PATH -d INSTALL_PATH [ -m ]
+    [sudo]  bs-install -r INSTALL_PATH [ -m ]
+            bs-install -V
+            bs-install ( -h | -H )
+
+Options:
+  -s SOURCE_PATH    source path of bs-scripts package
+  -d INSTALL_PATH   destination location to install the bs-scripts
+  -r INSTALL_PATH   remove installed scripts and man pages
+  -m                optional install/remove man pages
+  -V                show version
+  -h                show short help
+  -H                show detailed help
+
+Use '-H' for more detailed explaination about how to use this script.
+
+USAGE
+}
+
+bighelp()
+{
+    cat << USAGE
+
+Assuming you have the bs-scripts package in a directory somewhere, this script
+will copy the useful scripts from the package into a destination. It can be
+anywhere you like, but here are some suggestions:
+
+'/usr/local/bin' - this is likely already on your PATH and putting scripts here
+makes them available to all accounts. Using this location probably requires
+'sudo' to install.
+
+'/opt/local/bin' - system level install, alternative to /usr/local/bin. May not
+be on the PATH
+
+'~/bin' - a well known location for account-specific scripts and programs
+
+'~/.local/bin' - similar to above
+
+If the scripts are not installed to a directory on the PATH, you can either
+add that location to the PATH, or you can create aliases. This script will
+print alias statements as a convenience, that you can copy to your .aliases
+file if you like.
+
+You can also use this script to remove (-r) the scripts.
+
+If you use the -m option then the man pages will also be installed or
+removed.
+
+USAGE
+}
+
+# installs scripts from specified source, to specified destination
+# $1 - source - path to directory containing package/repo
+# $2 - destination - where to copy the scripts
+install_bs()
+{
+    local source dest
+
+    source="$1"
+    dest="$2"
+
+    # save our current location
+    cwd=$(pwd)
+    cd "${srcdir}"
+
+    # check to see if any of the scripts already exist at dest
+    for script in ${scripts_list}; do
+        if [ -f "${dest}/${script}" ]
+        then
+            echo "the script '${script}' already exists at the destination"
+            echo "please remove the old scripts before installing new (-r)"
+            exit 1
+        fi
+    done
+
+    # at this point we are in the directory containing the scripts to install
+    # create the target path if it doesnt exist
+    if [ ! -d "${dest}" ]
+    then
+        mkdir -p "${dest}" || { echo "error creating the destination directory"; exit 1; }
+    fi
+
+    # copy the scripts
+    for script in ${scripts_list}; do
+        echo "copying: ${script}"
+        cp ${script} "${dest}/." || { echo "error copying '${script}'"; exit 1; }
+    done
+
+    # print out aliases
+    echo ""
+    echo "Optional - add to your .aliases file"
+    echo "------------------------------------"
+    for script in ${scripts_list}; do
+        echo "alias ${script}='${dest}/${script}'"
+    done
+    echo ""
+
+    # go back to original cwd
+    cd ${cwd}
+}
+
+# deletes scripts from the specified source
+remove_bs()
+{
+    local dest
+
+    dest="$1"
+
+    # delete the scripts
+    for script in ${scripts_list}; do
+        echo "removing: ${dest}/${script}"
+        if [ -f "${dest}/${script}" ]
+        then
+            rm -f "${dest}/${script}" || { echo "error removing '${dest}/${script}'"; exit 1; }
+        else
+            echo "${dest}/${script} does not exist"
+        fi
+    done
+}
+
+# process command line
+# if no options are present, then show help
+if [ $# = 0 ]
+then
+    usage
+    exit 0
+fi
+
+# support --help since that is common
+if [ "$1" = "--help" ]
+then
+    usage
+    exit 0
+fi
+
+while getopts ":hHVs:d:r:m" opt; do
+    case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        H)
+            bighelp
+            exit 0
+            ;;
+        V)
+            echo "bs-install from bs-scripts package ${VER}"
+            echo "https://github.com/kroesche/bs-scripts"
+            exit 0
+            ;;
+        m)
+            man=1
+            ;;
+        s)
+            srcpath="${OPTARG}"
+            ;;
+        d)
+            destpath="${OPTARG}"
+            ;;
+        r)
+            delpath="${OPTARG}"
+            ;;
+        :)
+            echo "Option -${OPTARG} requires an argument"
+            exit 1
+            ;;
+        ?)
+            echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+    esac
+done
+
+echo ""
+
+# assume if srcpath and destpath exist, then the user wants to install
+# not checking if they also request -r at the same time
+if [ -n "${srcpath}" ]
+then
+    if [ -n "${destpath}" ]
+    then
+        install_bs "${srcpath}" "${destpath}"
+        # user is also requesting man pages installed
+        if [ "${man}" = "1" ]
+        then
+            cd man
+            ./bs-install-man -i
+        fi
+    else
+        echo "You specified -s without -d"
+        exit 1
+    fi
+# user is requesting removal
+elif [ -n "${delpath}" ]
+then
+    remove_bs "${delpath}"
+    # user is also requesting man pages installed
+    if [ "${man}" = "1" ]
+    then
+        cd man
+        ./bs-install-man -i
+    fi
+else
+    echo "I'm not sure what you want me to do. Try -h"
+    exit 1
+fi
+
+echo ""
+exit 0
