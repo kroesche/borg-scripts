@@ -1,0 +1,3 @@
+source=/dev/null
+enable=all
+disable=SC3043,SC2292,SC2154

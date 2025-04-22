@@ -49,7 +49,7 @@ usage()
 
 info()
 {
-    printf "%s %s\n" "$( date )" "$*" >&2;
+    printf "%s %s\n" "$( date || true )" "$*" >&2;
 }
 
 list()
@@ -60,8 +60,8 @@ list()
     for cfg in bs-set-*
     do
         BACKUP_SET_DESCRIPTION=""
-        . ./$cfg
-        setname=$(echo $cfg | sed -E "s/bs-set-(.*)\.cfg/\1/")
+        . ./"${cfg}"
+        setname=$(echo "${cfg}" | sed -E "s/bs-set-(.*)\.cfg/\1/")
         printf "%-16s %s\n" "${setname}" "${BACKUP_SET_DESCRIPTION}"
     done
     echo ""
@@ -70,7 +70,7 @@ list()
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 # switch to script directory
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || { echo "error cd to script directory"; exit 1; }
 
 # initialize prune and compact defaults
 doprune=1
@@ -78,14 +78,14 @@ docompact=1
 
 # process command line
 # if no options are passed at all, then show help
-if [ $# == 0 ]
+if [ $# = 0 ]
 then
     usage
     exit 0
 fi
 
 # support --help since that is common
-if [ "$1" == "--help" ]
+if [ "$1" = "--help" ]
 then
     usage
     exit 0
@@ -110,7 +110,7 @@ while getopts ":lvhb:t:n:" opt; do
             exit 0
             ;;
         b)
-            if [ "$action" == "test" ]
+            if [ "${action}" = "test" ]
             then
                 info "you cannot request both -b and -t"
                 exit 1
@@ -120,7 +120,7 @@ while getopts ":lvhb:t:n:" opt; do
             info "requested backup of set: ${setname}"
             ;;
         t)
-            if [ "$action" == "backup" ]
+            if [ "${action}" = "backup" ]
             then
                 info "you cannot request both -b and -t"
                 exit 1
@@ -130,11 +130,11 @@ while getopts ":lvhb:t:n:" opt; do
             info "requested dry-run of set: ${setname}"
             ;;
         n)
-            if [ "${OPTARG}" == "prune" ]
+            if [ "${OPTARG}" = "prune" ]
             then
                 doprune=0
                 info "requested skip pruning"
-            elif [ "${OPTARG}" == "compact" ]
+            elif [ "${OPTARG}" = "compact" ]
             then
                 docompact=0
                 info "requested skip compacting"
@@ -148,21 +148,25 @@ while getopts ":lvhb:t:n:" opt; do
             echo "Invalid option: -${OPTARG}"
             exit 1
             ;;
+        *)
+            echo "getopts error"
+            exit 1
+            ;;
     esac
 done
 
 # determine command action
 # --stats and --dry-run are not compatible switches for borg
-if [ "$action" == "backup" ]
+if [ "${action}" = "backup" ]
 then
     action_switch="--stats"
     filter="--filter AME"
-elif [ "$action" == "test" ]
+elif [ "${action}" = "test" ]
 then
     action_switch="--dry-run"
     filter=""
 else
-    info "bad command: $action"
+    info "bad command: ${action}"
     usage
     exit 1
 fi
@@ -186,7 +190,7 @@ else
     BORG=${BORGBIN}
 fi
 
-if ! command -v ${BORG} 2>&1 >/dev/null
+if ! command -v "${BORG}" >/dev/null 2>&1
 then
     info "could not find borg executable using: ${BORG}"
     exit 1
@@ -236,10 +240,25 @@ else
     exit 1
 fi
 
-info "BACKUP_CUSTOM_FLAGS ..."
-info ${BACKUP_CUSTOM_FLAGS}
-info "BACKUP_SOURCE_PATHS ..."
-info ${BACKUP_SOURCE_PATHS}
+if [ -n "${BACKUP_CUSTOM_FLAGS}" ]
+then
+    info "BACKUP_CUSTOM_FLAGS ..."
+    info "${BACKUP_CUSTOM_FLAGS}"
+else
+    echo "BACKUP_CUSTOM_FLAGS is not defined."
+    echo "Something went wrong with the backup set config file."
+    exit 1
+fi
+
+if [ -n "${BACKUP_SOURCE_PATHS}" ]
+then
+    info "BACKUP_SOURCE_PATHS ..."
+    info "${BACKUP_SOURCE_PATHS}"
+else
+    echo "BACKUP_SOURCE_PATHS is not defined."
+    echo "Something went wrong with the backup set config file."
+    exit 1
+fi
 
 # validate and source the repo credentials
 if [ -f "${repo_config_file}" ]
@@ -250,8 +269,16 @@ else
     exit 1
 fi
 
-info "BORG_REPO ..."
-info "${BORG_REPO}"
+if [ -n "${BORG_REPO}" ]
+then
+    info "BORG_REPO ..."
+    info "${BORG_REPO}"
+else
+    echo "BORG_REPO is not defined."
+    echo "Something went wrong with the configuration file load."
+    exit 1
+fi
+
 info "BORG_PASS... is not shown for security"
 
 # to get quoting, and paths with spaces being included from the 'set' files,
@@ -268,16 +295,16 @@ ${BACKUP_CUSTOM_FLAGS} ::{hostname}-${setname}-{now} ${BACKUP_SOURCE_PATHS}"
 
 # show what will be called
 info "BORG_CLI_ARGS:"
-info $BORG_CLI_ARGS
+info "${BORG_CLI_ARGS}"
 
 info "+++BACKUP: ${setname}"
 # use xargs to expand args and pass to borg. this seems to work
-echo $BORG_CLI_ARGS | xargs ${BORG}
+echo "${BORG_CLI_ARGS}" | xargs "${BORG}"
 
 info "---BACKUP"
 
 # if it was a test run, just exit here
-if [ "$action" == "test" ]
+if [ "${action}" = "test" ]
 then
     info "End of test run"
     exit 0
@@ -285,7 +312,7 @@ fi
 
 backup_exit=$?
 
-if [ $doprune == 1 ]
+if [ "${doprune}" = 1 ]
 then
     info "+++PRUNE"
 
@@ -300,7 +327,7 @@ else
     prune_exit=0
 fi
 
-if [ $docompact == 1 ]
+if [ "${docompact}" = 1 ]
 then
     info "+++COMPACTING"
 
@@ -315,12 +342,12 @@ fi
 global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
 global_exit=$(( compact_exit > global_exit ? compact_exit : global_exit ))
 
-if [ ${global_exit} -eq 0 ]; then
+if [ "${global_exit}" -eq 0 ]; then
     info "Backup, Prune, and Compact finished successfully"
-elif [ ${global_exit} -eq 1 ]; then
+elif [ "${global_exit}" -eq 1 ]; then
     info "Backup, Prune, and/or Compact finished with warnings"
 else
     info "Backup, Prune, and/or Compact finished with errors"
 fi
 
-exit ${global_exit}
+exit "${global_exit}"

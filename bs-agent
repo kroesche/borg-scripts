@@ -104,7 +104,7 @@ while getopts ":D:H:M:ilursapvh" opt; do
         D)
             day=${OPTARG}
             day_key="<key>Weekday</key><integer>${day}</integer>"
-            if [ ${day} -gt 7 ] || [ ${day} -lt 0 ]
+            if [ "${day}" -gt 7 ] || [ "${day}" -lt 0 ]
             then
                 echo "-D value for day must be 0-7"
                 exit 1
@@ -113,7 +113,7 @@ while getopts ":D:H:M:ilursapvh" opt; do
         H)
             hour=${OPTARG}
             hour_key="<key>Hour</key><integer>${hour}</integer>"
-            if [ ${hour} -gt 23 ] || [ ${hour} -lt 0 ]
+            if [ "${hour}" -gt 23 ] || [ "${hour}" -lt 0 ]
             then
                 echo "-H value for hour must be 0-23"
                 exit 1
@@ -122,7 +122,7 @@ while getopts ":D:H:M:ilursapvh" opt; do
         M)
             minute=${OPTARG}
             minute_key="<key>Minute</key><integer>${minute}</integer>"
-            if [ ${minute} -gt 59 ] || [ ${minute} -lt 0 ]
+            if [ "${minute}" -gt 59 ] || [ "${minute}" -lt 0 ]
             then
                 echo "-M value for minute must be 0-59"
                 exit 1
@@ -150,9 +150,9 @@ while getopts ":D:H:M:ilursapvh" opt; do
             echo ""
             echo "Backup sets installed as agents"
             echo "-------------------------------"
-            for plist in ${HOME}/Library/LaunchAgents/local.$(hostname -s).backup.*
+            for plist in "${HOME}"/Library/LaunchAgents/local."$(hostname -s)".backup.*
             do
-                echo ${plist} | sed -E "s|^.*\/local\.$(hostname -s)\.backup\.(.*)\.plist|\1|"
+                echo "${plist}" | sed -E "s|^.*\/local\.$(hostname -s || true)\.backup\.(.*)\.plist|\1|"
             done
             exit 0
             ;;
@@ -162,6 +162,10 @@ while getopts ":D:H:M:ilursapvh" opt; do
             ;;
         ?)
             echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+        *)
+            echo "getopts error"
             exit 1
             ;;
     esac
@@ -183,11 +187,11 @@ plist_file="${HOME}/Library/LaunchAgents/${agent_name}.plist"
 # check for non-install options first: -l, -u, -r
 # these take precedence over install
 
-if [ ${do_dump} -eq 1 ]
+if [ "${do_dump}" -eq 1 ]
 then
-    if [ -f ${plist_file} ]
+    if [ -f "${plist_file}" ]
     then
-        cat ${plist_file}
+        cat "${plist_file}"
         exit 0
     else
         echo "No agent plist named:"
@@ -196,12 +200,12 @@ then
     fi
 fi
 
-if [ ${do_load} -eq 1 ]
+if [ "${do_load}" -eq 1 ]
 then
     echo "loading launch agent: ${plist_file}"
-    launchctl bootstrap gui/$(id -u) ${plist_file}
+    launchctl bootstrap gui/"$({ id -u || true; })" "${plist_file}"
     ret=$?
-    if [ $ret -ne 0 ]
+    if [ "${ret}" -ne 0 ]
     then
         echo "launchctl returned error code ${ret}"
         echo "maybe it was already loaded? maybe it's not installed?"
@@ -211,12 +215,12 @@ then
     fi
 fi
 
-if [ ${do_unload} -eq 1 ]
+if [ "${do_unload}" -eq 1 ]
 then
     echo "unloading launch agent: ${plist_file}"
-    launchctl bootout gui/$(id -u) ${plist_file}
+    launchctl bootout gui/"$({ id -u || true; })" "${plist_file}"
     ret=$?
-    if [ $ret -ne 0 ]
+    if [ "${ret}" -ne 0 ]
     then
         echo "launchctl returned error code ${ret}"
         echo "maybe it wasn't loaded? maybe it's not installed?"
@@ -226,12 +230,12 @@ then
     fi
 fi
 
-if [ ${do_run} -eq 1 ]
+if [ "${do_run}" -eq 1 ]
 then
     echo "running launch agent: ${agent_name}"
-    launchctl kickstart gui/$(id -u)/${agent_name}
+    launchctl kickstart gui/"$({ id -u || true; })"/"${agent_name}"
     ret=$?
-    if [ $ret -ne 0 ]
+    if [ "${ret}" -ne 0 ]
     then
         echo "launchctl returned error code ${ret}"
         echo "maybe it wasn't loaded? maybe it's not installed?"
@@ -241,7 +245,7 @@ then
     fi
 fi
 
-if [ ${do_status} -eq 1 ]
+if [ "${do_status}" -eq 1 ]
 then
     echo "status of launch agent: ${agent_name}"
     launchctl list | grep "PID\|${agent_name}"
@@ -251,7 +255,7 @@ fi
 # if none of those other options was specified, then generate the plist and
 # write either to the plist file or to the console
 
-if [ ${do_install} -eq 1 ]
+if [ "${do_install}" -eq 1 ]
 then
     plist_out=${plist_file}
     echo "Writing agent plist to ${plist_file}"
@@ -270,7 +274,7 @@ echo "Found borg executable path to be: ${BORGBIN}"
 
 # TODO script path is hardcoded below. allow for configurable scripts location
 
-cat >${plist_out}<<END
+cat >"${plist_out}"<<END
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">

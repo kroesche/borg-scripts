@@ -98,14 +98,14 @@ USAGE
 # $2 - destination - where to copy the scripts
 install_bs()
 {
-    local source dest
+    local srcdir dest
 
-    source="$1"
+    srcdir="$1"
     dest="$2"
 
     # save our current location
     cwd=$(pwd)
-    cd "${srcdir}"
+    cd "${srcdir}" || { echo "Could not cd to '${srcdir}'"; exit 1; }
 
     # check to see if any of the scripts already exist at dest
     for script in ${scripts_list}; do
@@ -127,7 +127,7 @@ install_bs()
     # copy the scripts
     for script in ${scripts_list}; do
         echo "copying: ${script}"
-        cp ${script} "${dest}/." || { echo "error copying '${script}'"; exit 1; }
+        cp "${script}" "${dest}/." || { echo "error copying '${script}'"; exit 1; }
     done
 
     # print out aliases
@@ -140,7 +140,7 @@ install_bs()
     echo ""
 
     # go back to original cwd
-    cd ${cwd}
+    cd "${cwd}" || { echo "Could not cd back to cwd: ${cwd}"; exit 1; }
 }
 
 # deletes scripts from the specified source
@@ -212,6 +212,10 @@ while getopts ":hHVs:d:r:m" opt; do
             echo "Invalid option: -${OPTARG}"
             exit 1
             ;;
+        *)
+            echo "getopts error"
+            exit 1
+            ;;
     esac
 done
 
@@ -227,7 +231,7 @@ then
         # user is also requesting man pages installed
         if [ "${man}" = "1" ]
         then
-            cd man
+            cd man || { echo "Could not cd to 'man' directory"; exit 1; }
             ./bs-install-man -i
         fi
     else
@@ -241,7 +245,7 @@ then
     # user is also requesting man pages installed
     if [ "${man}" = "1" ]
     then
-        cd man
+        cd man || { echo "Could not cd to 'man' directory"; exit 1; }
         ./bs-install-man -i
     fi
 else

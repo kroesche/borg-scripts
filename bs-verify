@@ -69,6 +69,7 @@ REPO_CONFIG="bs-repo.cfg"
 CFG_PATH=~/.local/share/bs-scripts
 
 set -e
+shopt -s inherit_errexit
 
 # generate checksums for a directory tree
 # $1 - root location for generating the sums, script will cd here
@@ -87,11 +88,11 @@ generate_sums()
     sumpath=$2
     sumfile=$3
     saved_cwd=$(pwd)
-    cd ${root}
-    rm -f ${sumfile}
+    cd "${root}"
+    rm -f "${sumfile}"
     echo "Generating sums for: ${root} / ${sumpath}"
-    find "${sumpath}" -type f -exec sha256sum "{}" >> ${sumfile} \;
-    cd ${saved_cwd}
+    find "${sumpath}" -type f -exec sh -c 'sha256sum "$1" >> "${sumfile}"' _ {} \;
+    cd "${saved_cwd}"
 }
 
 # verify previously saved checksums on a directory tree
@@ -102,25 +103,25 @@ verify_sums()
 {
     local root sumfile saved_cwd
     echo "Verifying sums ..."
-    root=$1
-    sumfile=$2
+    root="$1"
+    sumfile="$2"
     saved_cwd=$(pwd)
-    cd ${root}
+    cd "${root}"
     if [ "${3}" == "y" ]
     then
-        sha256sum --check ${sumfile}
+        sha256sum --check "${sumfile}"
     else
         # filter out all the "OK" lines
-        sha256sum --check ${sumfile} | grep -v "OK"
+        { sha256sum --check "${sumfile}" || true; } | grep -v "OK"
     fi
-    cd ${saved_cwd}
+    cd "${saved_cwd}"
 }
 
 # given an ID input (which is probably a number), return a file name
 # $1 - ID
 cfg_filename_from_id()
 {
-    echo ${CFG_PATH}/extract_$1.cfg
+    echo "${CFG_PATH}/extract_$1.cfg"
 }
 
 # get a file to be used for the data file storage
@@ -131,12 +132,12 @@ create_cfg_file_id()
     local i filename
     for i in {0..99}
     do
-        filename=$(cfg_filename_from_id ${i})
-        if [ ! -e ${filename} ]
+        filename=$(cfg_filename_from_id "${i}")
+        if [ ! -e "${filename}" ]
         then
-            touch ${filename}
+            touch "${filename}"
             #echo "Generated data file name: ${filename}"
-            echo ${i}
+            echo "${i}"
             return
         fi
     done
@@ -157,14 +158,16 @@ extract_backup()
     local archive_name extract_path timestamp cfgid cfgfile tempdir saved_cwd
     archive_name=$1
     extract_path=$2
-    timestamp=$(date -Iminutes|cut -d - -f1-3)
+    timestamp=$({ date -Iminutes || true; } |cut -d - -f1-3)
     tempdir=$(mktemp -d)
     cfgid=$(create_cfg_file_id)
-    cfgfile=$(cfg_filename_from_id ${cfgid})
-    echo "TIMESTAMP=${timestamp}" > ${cfgfile}
-    echo "ARCHIVE=\"${archive_name}\"" >> ${cfgfile}
-    echo "EXTRACT_PATH=\"${extract_path}\"" >> ${cfgfile}
-    echo "TEMPDIR=${tempdir}" >> ${cfgfile}
+    cfgfile=$(cfg_filename_from_id "${cfgid}")
+    {
+        echo "TIMESTAMP=${timestamp}"
+        echo "ARCHIVE=\"${archive_name}\""
+        echo "EXTRACT_PATH=\"${extract_path}\""
+        echo "TEMPDIR=${tempdir}"
+    } > "${cfgfile}"
     extract_id=${cfgid}
     echo "Extracting borg backup archive: ${archive_name} ; path: ${extract_path}"
 
@@ -172,23 +175,23 @@ extract_backup()
     # these just go into the environment and are used by borg
     # this step assumes we are in the bs-scripts config directory, which
     # should have happened before this fn was called
-    if [ -f ${REPO_CONFIG} ]
+    if [ -f "${REPO_CONFIG}" ]
     then
-        . ${REPO_CONFIG}
+        . "${REPO_CONFIG}"
     else
         echo "Error loading repo config file"
         exit 1
     fi
     # call borg to do the extract (assumes on the path)
     saved_cwd=$(pwd)
-    if [ -d ${tempdir} ]
+    if [ -d "${tempdir}" ]
     then
-        cd ${tempdir}
+        cd "${tempdir}"
     else
         echo "Error switching to temporary directory for archive extraction"
         exit 1
     fi
-    borg extract ::${archive_name} "${extract_path}"
+    borg extract ::"${archive_name}" "${extract_path}"
 }
 
 # list all of the saved test configurations
@@ -197,11 +200,11 @@ list_extracts()
     local id
     for id in {0..99}
     do
-        filename=$(cfg_filename_from_id ${id})
-        if [ -e ${filename} ]
+        filename=$(cfg_filename_from_id "${id}")
+        if [ -e "${filename}" ]
         then
-            . ${filename}
-            echo "${id}: ${TIMESTAMP} | ${ARCHIVE} | ${EXTRACT_PATH}"
+            . "${filename}"
+            echo "${id}: ${TIMESTAMP:?missing} | ${ARCHIVE:?missing} | ${EXTRACT_PATH:?missing}"
         fi
     done
 }
@@ -212,15 +215,21 @@ list_extracts()
 # $1 - test config ID to clean (use -l to see list)
 clean() {
     local id=$1
-    filename=$(cfg_filename_from_id ${id})
-    if [ -e ${filename} ]
+    filename=$(cfg_filename_from_id "${id}")
+    if [ -e "${filename}" ]
     then
-        . ${filename}
-        echo "Attempting to remove temporary directory of extracted backup ..."
-        echo ${TEMPDIR}
-        rm -rf ${TEMPDIR}
-        echo "Removing metadata file"
-        rm -f ${filename}
+        . "${filename}"
+        if [ -n "${TEMPDIR}" ]
+        then
+            echo "Attempting to remove temporary directory of extracted backup ..."
+            echo "${TEMPDIR}"
+            rm -rf "${TEMPDIR}"
+            echo "Removing metadata file"
+            rm -f "${filename}"
+        else
+            echo "Something went wrong, cannot find TEMPDIR"
+            exit 1
+        fi
     fi
 }
 
@@ -228,10 +237,10 @@ clean() {
 # $1 - test config ID (use -l for list)
 summarize() {
     local id=$1
-    filename=$(cfg_filename_from_id ${id})
-    if [ -e ${filename} ]
+    filename=$(cfg_filename_from_id "${id}")
+    if [ -e "${filename}" ]
     then
-        . ${filename}
+        . "${filename}"
         echo ""
         echo "----------------------"
         echo "Summary of test set: ${id}"
@@ -242,7 +251,7 @@ summarize() {
         echo "Location:   ${TEMPDIR}"
         echo "----------------------"
         echo "Storage Usage of Extracted Files:"
-        du -d 0 -h ${TEMPDIR}
+        du -d 0 -h "${TEMPDIR}"
     fi
 }
 
@@ -296,12 +305,12 @@ while getopts ":a:e:t:i:nc:s:lvh" opt; do
             ;;
         c)
             clean_id=${OPTARG}
-            clean ${clean_id}
+            clean "${clean_id}"
             exit 0
             ;;
         s)
             summarize_id=${OPTARG}
-            summarize ${summarize_id}
+            summarize "${summarize_id}"
             exit 0
             ;;
         :)
@@ -310,6 +319,10 @@ while getopts ":a:e:t:i:nc:s:lvh" opt; do
             ;;
         ?)
             echo "Invalid option: -${OPTARG}"
+            exit 1
+            ;;
+        *)
+            echo "optargs error"
             exit 1
             ;;
     esac
@@ -324,7 +337,7 @@ then
         echo "Extracting a backup using the following ..."
         echo "Archive:      ${archive}"
         echo "Extract path: ${extract_path}"
-        extract_backup ${archive} "${extract_path}"
+        extract_backup "${archive}" "${extract_path}"
     else
         echo "In order to extract (-e) you must specify an archive (-a)"
         exit 1
@@ -346,10 +359,10 @@ then
     # the extract_id either came from -i, or from the extract
     if [ -n "${extract_id}" ]
     then
-        cfgfile=$(cfg_filename_from_id ${extract_id})
-        . ${cfgfile}
-        generate_sums ${host_root} "${EXTRACT_PATH}" ${TEMPDIR}/sums.txt
-        verify_sums ${TEMPDIR} ${TEMPDIR}/sums.txt ${noisy}
+        cfgfile=$(cfg_filename_from_id "${extract_id}")
+        . "${cfgfile}"
+        generate_sums "${host_root}" "${EXTRACT_PATH}" "${TEMPDIR}/sums.txt"
+        verify_sums "${TEMPDIR}" "${TEMPDIR}/sums.txt" "${noisy}"
         exit $?
     else
         echo "In order to verify (-t) you need to either extract (-e/-a) or"

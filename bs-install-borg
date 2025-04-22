@@ -95,7 +95,7 @@ USAGE
 
 INSTALL_PATH=/usr/local/share
 EXE_SYMLINK=/usr/local/bin/borg
-PLATFORM="$(uname -s)-$(uname -m)"
+PLATFORM="$(uname -s || true)-$(uname -m || true)"
 
 # clone the board repo
 # checkout version 1.4.0
@@ -114,7 +114,7 @@ make_package()
     pip install -e .
     # add pyinstaller and build package
     pip install pyinstaller
-    pyinstaller -D -n borg-${PLATFORM} src/borg/__main__.py
+    pyinstaller -D -n "borg-${PLATFORM}" src/borg/__main__.py
     deactivate
     cd ..
 }
@@ -159,10 +159,10 @@ fi
 # test option
 if [ "$1" = "-t" ]
 then
-    borg/dist/borg-${PLATFORM}/borg-${PLATFORM} --help
+    "borg/dist/borg-${PLATFORM}/borg-${PLATFORM}" --help
     echo ""
-    borg/dist/borg-${PLATFORM}/borg-${PLATFORM} --version
-    echo "\nIf you see the borg help and the version above, then it's working.\n"
+    "borg/dist/borg-${PLATFORM}/borg-${PLATFORM}" --version
+    printf "\nIf you see the borg help and the version above, then it's working.\n\n"
     exit 0
 fi
 
@@ -196,10 +196,10 @@ then
         echo ""
         exit 1
     fi
-    cp -R borg/dist/borg-${PLATFORM} /usr/local/share/borg-${PLATFORM} ||
-        { echo "Error installing: /usr/local/share/borg-${PLATFORM}\nDo you need sudo?"; exit 1; }
-    ln -s /usr/local/share/borg-${PLATFORM}/borg-${PLATFORM} ${EXE_SYMLINK} ||
-        { echo "Error creating symlink: ${EXE_SYMLINK}\nDo you need sudo?"; exit 1; }
+    cp -R "borg/dist/borg-${PLATFORM}" "/usr/local/share/borg-${PLATFORM}" ||
+        { printf "Error installing: /usr/local/share/borg-%s\nDo you need sudo?\n" "${PLATFORM}"; exit 1; }
+    ln -s "/usr/local/share/borg-${PLATFORM}/borg-${PLATFORM}" "${EXE_SYMLINK}" ||
+        { printf "Error creating symlink: %s\nDo you need sudo?\n" "${EXE_SYMLINK}" ; exit 1; }
     echo ""
     echo "If /usr/local/bin is on your path, you should now be able to type"
     echo "    borg --help"
@@ -213,9 +213,9 @@ if [ "$1" = "-r" ]
 then
     echo ""
     echo "Attempting to remove: ${EXE_SYMLINK}"
-    rm -f ${EXE_SYMLINK} || { echo "Some error occurred. Do you need sudo?"; exit 1; }
+    rm -f "${EXE_SYMLINK}" || { echo "Some error occurred. Do you need sudo?"; exit 1; }
     echo "Attempting to remove: /usr/local/share/borg-${PLATFORM}"
-    rm -rf /usr/local/share/borg-${PLATFORM} ||
+    rm -rf /usr/local/share/borg-"${PLATFORM}" ||
         { echo "Some error occurred. Do you need sudo?"; exit 1; }
     exit 0
 fi
