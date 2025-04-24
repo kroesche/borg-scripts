@@ -25,9 +25,11 @@
 # many parts of this script are lifted from borgbackup help docs
 
 VER="0.3"
-SCRIPT_DIR="$(dirname $(realpath "$0"))"
+_fullpath="$(realpath "$0")"
+SCRIPT_DIR="$(dirname "${_fullpath}")"
 
 verbose=0
+gendir=""
 
 usage()
 {
@@ -35,20 +37,27 @@ usage()
     echo "Usage:"
     echo "  bs-backup -b SET_NAME [-n compact] [-n prune]"
     echo "  bs-backup -t SET_NAME"
+    echo "  bs-backup -g ( env | xdg | cwd | config | script )"
     echo "  bs-backup -l"
     echo "  bs-backup -v"
     echo "  bs-backup -V"
     echo "  bs-backup -h"
     echo ""
     echo "Options:"
-    echo "  -h            show help"
-    echo "  -v            verbose - show extra debugging messages"
-    echo "  -V            show version"
-    echo "  -l            list available backup set configurations"
     echo "  -b SET_NAME   backup the configuration named SET_NAME"
     echo "  -t SET_NAME   dry-run backup of SET_NAME"
     echo "  -n prune      skip prune operation"
     echo "  -n compact    skip compact operation"
+    echo "  -g            generate config script templates ..."
+    echo "     env        in BS_SCRIPTS_CONFIG"
+    echo "     xdg        in XDG_CONFIG_HOME/bs-scripts"
+    echo "     cwd        in the current directory"
+    echo "     config     in ~/.config/bs-scripts"
+    echo "     script     in the directory containing this script"
+    echo "  -l            list available backup set configurations"
+    echo "  -v            verbose - show extra debugging messages"
+    echo "  -V            show version"
+    echo "  -h            show help"
     echo ""
 }
 
@@ -117,6 +126,197 @@ get_config()
     fi
 }
 
+# generate template config files
+# $1 - location
+#      - env - use BS_SCRIPTS_CONFIG
+#      - xdg - use XDG_CONFIG_HOME/bs-scripts
+#      - cwd - use CWD
+#      - config - use ~/.config/bs-scripts
+#      - script - use script dir
+#
+generate_configs()
+{
+    local loc configdir
+    loc="$1"
+
+    if [ "${loc}" = "env" ]
+    then
+        if [ -n "${BS_SCRIPTS_CONFIG}" ]
+        then
+            configdir="${BS_SCRIPTS_CONFIG}"
+        else
+            echo "you specified 'env' but BS_SCRIPTS_CONFIG is not defined"
+            exit 1
+        fi
+    elif [ "${loc}" = "xdg" ]
+    then
+        if [ -n "${XDG_CONFIG_HOME}" ]
+        then
+            configdir="${XDG_CONFIG_HOME}/bs-scripts"
+            mkdir -p "${configdir}" || { echo "could not create ${configdir}"; exit 1; }
+        else
+            echo "you specified 'xdg' but XDG_CONFIG_HOME is not defined"
+            exit 1
+        fi
+    elif [ "${loc}" = "cwd" ]
+    then
+        configdir=$(realpath $(pwd))
+    elif [ "${loc}" = "config" ]
+    then
+        configdir="$(dirname ${HOME}/.config/bs-scripts/x)"
+        mkdir -p "${configdir}" || { echo "could not create ${configdir}"; exit 1; }
+    elif [ "${loc}" = "script" ]
+    then
+        configdir="${SCRIPT_DIR}"
+    else
+        echo "unrecognized config location: ${loc}"
+        exit 1
+    fi
+
+    dbg_print "Using config dir: ${configdir}"
+
+    # BS-REPO.CFG
+
+    if [ -f "${configdir}/bs-repo.cfg" ]
+    then
+        echo "NOT GENERATING: ${configdir}/bs-repo.cfg because it already exists."
+    else
+        cat <<BSREPOCFG > "${configdir}/bs-repo.cfg"
+# Generated Template bs-repo.cfg for bs-scripts
+# Modify this file for your setup
+#
+# REPO
+#
+# BORG_REPO is the path to your borg repository, local or remote
+# below is an example Hetnzer storage box path
+#
+# fix up the URL and uncomment
+
+# export BORG_REPO=ssh://uxxxxxx@uxxxxxx.your-storagebox.de:23/./backups/\$(hostname -s)
+
+# one of BORG_PASSPHRASE or BORG_PASSCOMMAND should be defined
+# see the borg docs
+#
+# example PASSPHRASE from borg docs
+
+# export BORG_PASSPHRASE='XYZl0ngandsecurepa_55_phrasea&&123'
+
+# example PASSCOMMAND for repo passphrase stored in mac keychain
+
+# export BORG_PASSCOMMAND="security find-generic-password -a \$USER -s borg-\$(hostname -s)-passphrase -w"
+
+# if you want to create the password for mac keychain, you can do something
+# like this:
+#
+#    security add-generic-password -a \$USER -s borg-\$(hostname -s)-passphrase -w 'your_password_here'
+#
+# You only have to do that once and then the password is stored in your Mac
+# keychain. However it would be a good idea to also store that same password in
+# your password manager (if it's not keychain).
+#
+# Be aaware that if you type your password in the clear as in above, it may be
+# stored in your shell history file (~/.bash_history). So be sure and delete
+# that out of your history or supply the password using another method.
+#
+# LOGS
+#
+# This section defines where log files are created. Log files are created when
+# a backup runs under the agent, which is set up using 'bs-agent'.
+# The logs can be viewed with 'bs-logs'.
+#
+# Fix up the path and file name as needed and uncomment. This example below
+# is probably what you need for MacOS
+
+# export BS_LOG_PATH="\${HOME}/Library/Logs"
+# export BS_LOG_FILE="bs-backup.log"
+BSREPOCFG
+        echo "Generated: ${configdir}/bs-repo.cfg"
+    fi
+
+    # BS-COMMON-EXCLUDE.CFG
+
+    if [ -f "${configdir}/bs-exclude-common.cfg" ]
+    then
+        echo "NOT GENERATING: ${configdir}/bs-exclude-common.cfg because it already exists."
+    else
+        cat <<BSEXCLUDE > "${configdir}/bs-exclude-common.cfg"
+# Generated template bs-exclude-common.cfg for bs-scripts
+# Modify this file for your setup
+#
+# This is a list of exclude patterns/files that should apply to all backups
+# See the borg documentation for the exclude format
+#
+sh:**/venv
+*/Downloads*
+*/Automatically*
+*/.DS_*
+*/.DocumentRevisions*
+*/Spotlight*
+*/TemporaryItems
+*/.Trashes
+*/.fseventsd
+*/tmp
+*/temp
+*/cache*
+*/Cache*
+*/.cache
+*/.Trash
+*/Logs
+*/.MobileBackups*
+*/MobileBackups*
+BSEXCLUDE
+        echo "Generated: ${configdir}/bs-exclude-common.cfg"
+    fi
+
+    # BS-SET-EXAMPLE.CFG
+
+    if [ -f "${configdir}/bs-set-example.cfg" ]
+    then
+        echo "NOT GENERATING: ${configdir}/bs-set-example.cfg because it already exists."
+    else
+        cat <<BSSETEXAMPLE > "${configdir}/bs-set-example.cfg"
+# Generated template bs-set-example.cfg for bs-scripts
+# Modify this file or make new copies for your setup
+#
+# This file defines a backup set. You can have more than one of these kind of
+# files. They should be named 'bs-set-name.cfg' where 'name' is the name of
+# the backup set.
+#
+# bs-backup backup set configuration file
+#
+# optional description. can be left empty.
+# use a very short string, it will be shown when backup configs are listed
+#
+BACKUP_SET_DESCRIPTION="Example backup set"
+
+# BACKUP_CUSTOM_FLAGS is mainly used to list paths/patterns to exclude for
+# this backup set. It does not need to list the common exclusions, just
+# exclusions unique to this backup set.
+#
+# See the borg docs for how to specify the patterns. But they often look like
+# this:
+#     */foobar*
+#
+# It can be empty if there are no special exclusions.
+# It can also include other borg flags if needed.
+# This example shows excluding two paths.
+#
+BACKUP_CUSTOM_FLAGS="--exclude 'bs-repo.cfg' --exclude '*/.git'"
+
+# BACKUP_SOURCE PATHS must have at least one path. it can have more than one
+# path, space separated, or on separate lines as described above. Normally this
+# should be a full path, such as:
+#     BACKUP_SOURCE_PATHS="/Users/joe/Documents"
+#
+# In this example, it just uses the current directory so that you can use it to
+# do an example backup of this directory.
+#
+BACKUP_SOURCE_PATHS="."
+BSSETEXAMPLE
+        echo "Generated: ${configdir}/bs-set-example.cfg"
+    fi
+}
+
 # list all the available backup configuration
 # configuration is established before this is called
 list()
@@ -135,7 +335,7 @@ list()
         printf "%-16s %s\n" "${setname}" "${BACKUP_SET_DESCRIPTION}"
     done
     echo ""
-    cd "${cwd}"
+    cd "${cwd}" || { echo "Could not cd to ${cwd}"; exit 1; }
 }
 
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
@@ -162,7 +362,7 @@ fi
 # otherwise, process the options
 # this does not do a lot of cross checking of options so it is possible
 # to specify nonsense set of options
-while getopts ":lvVhb:t:n:" opt; do
+while getopts ":lvVhb:t:n:g:" opt; do
     case ${opt} in
         h)
             usage
@@ -210,6 +410,11 @@ while getopts ":lvVhb:t:n:" opt; do
                 info "requested skip compacting"
             fi
             ;;
+        g)
+            gendir=${OPTARG}
+            generate_configs "${gendir}"
+            exit 0
+            ;;
         :)
             echo "Option -${OPTARG} requires an argument"
             exit 1
@@ -228,7 +433,7 @@ done
 # remaining commands require access to configuration file
 get_config
 
-if [ "${action}" == "list" ]
+if [ "${action}" = "list" ]
 then
     list
     exit 0
@@ -377,7 +582,7 @@ ${filter}
 ${action_switch}
 --exclude-from ${COMMON_EXCLUDE_FILE}
 ${BACKUP_CUSTOM_FLAGS}
-"${ARCHIVE}"
+${ARCHIVE}
 ${BACKUP_SOURCE_PATHS}"
 
 # show what will be called
