@@ -384,3 +384,64 @@ BS_SET
     assert_line --partial " +++BACKUP: test"
 
 }
+
+@test "bs-logs extract added files" {
+    # Generate a backup and log file
+    run bs-backup -g cwd
+    assert_success
+    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
+    echo "BS_LOG_PATH=$(pwd)" >> ./bs-repo.cfg
+    echo "BS_LOG_FILE=bs-backup.log" >> ./bs-repo.cfg
+    bs-backup -b test >bs-backup.log 2>&1
+    assert [ "$?" -eq 0 ]
+    assert_file_exists "bs-backup.log"
+
+    # Extract added files
+    run bs-logs -x 1 -a
+    assert_success
+    assert_output --partial "A /path/to/added/file"
+}
+
+@test "bs-logs extract modified files" {
+    run bs-logs -x 1 -m
+    assert_success
+    assert_output --partial "M /path/to/modified/file"
+}
+
+@test "bs-logs extract error files" {
+    run bs-logs -x 1 -e
+    assert_success
+    assert_output --partial "E /path/to/error/file"
+}
+
+@test "bs-logs prune log" {
+    # Prune the log to keep only 1 backup
+    run bs-logs -p 1
+    assert_success
+    run bs-logs -l
+    assert_success
+    assert_line --partial "1: +++BACKUP: test"
+}
+
+@test "bs-logs delete backup set" {
+    # Delete the first backup set
+    run bs-logs -d 1
+    assert_success
+    run bs-logs -l
+    assert_success
+    assert_no_line "1: +++BACKUP: test"
+}
+
+@test "bs-logs save log" {
+    # Verify that a backup of the log is created
+    run bs-logs -p 1
+    assert_success
+    assert_file_exists "bs-backup.log.0"
+}
+
+@test "bs-logs invalid option" {
+    # Test invalid option handling
+    run bs-logs -z
+    assert_failure
+    assert_output --partial "Invalid option"
+}
