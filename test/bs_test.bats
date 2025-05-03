@@ -158,11 +158,7 @@ setup() {
     assert_line 'bs-backup from bs-scripts package 0.3'
 }
 
-@test "bs-logs basic version" {
-    run bs-logs -V
-    assert_success
-    assert_line 'bs-logs from bs-scripts package 0.3'
-}
+######## BS-BACKUP ########
 
 @test "bs-backup check no configs" {
     run bs-backup -g env
@@ -300,4 +296,91 @@ BS_SET
     assert_success
     assert_line "terminating with success status, rc 0"
     assert_line --partial "Backup, Prune, and Compact finished successfully"
+}
+
+######## BS-LOGS ########
+
+@test "bs-logs basic version" {
+    run bs-logs -V
+    assert_success
+    assert_line 'bs-logs from bs-scripts package 0.3'
+}
+
+@test "bs-logs verify config env" {
+    export BS_SCRIPTS_CONFIG="${TEST_CONFIG}"
+    run bs-logs -v -l
+    assert_failure # fails because config files is not actually there
+    assert_line "Using user defined BS_SCRIPTS_CONFIG as config location"
+}
+
+@test "bs-logs verify config cwd" {
+    # need to generate some configs in cwd so they can be found
+    run bs-backup -g cwd
+    assert_success
+    run bs-logs -v -l
+    assert_failure # generated config file does contain proper BS_LOG_PATH etc
+    assert_line "Using current directory for configuration"
+}
+
+@test "bs-logs verify config xdg" {
+    export XDG_CONFIG_HOME="${TEST_CONFIG}"
+    # generate configs in xdg so they can be found
+    run bs-backup -g xdg
+    run bs-logs -v -l
+    assert_failure # generated config file does contain proper BS_LOG_PATH etc
+    assert_line "Using XDG_CONFIG_HOME for configuration"
+}
+
+@test "bs-logs verify config in .config" {
+    skip "requires modifications to .config on host system"
+}
+
+@test "bs-logs verify config scripts" {
+   # fallback with nothing else defined should be scripts dir
+   run bs-logs -v -l
+   assert_failure # config files not actually there
+   assert_line "Using scripts dir"
+}
+
+@test "bs-logs list backup log" {
+    # this first part just recreates a normal backup
+    # but this time we need to save the log
+
+    # create the configs, use cwd
+    run bs-backup -g cwd
+    assert_success
+
+    # update bs-repo.cfg to have usefule BORG_REPO
+    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
+
+    # need to add the BS_LOG_... vars to bs-repo
+    echo "BS_LOG_PATH=$(pwd)" >> ./bs-repo.cfg
+    echo "BS_LOG_FILE=bs-backup.log" >> ./bs-repo.cfg
+
+    # put something interesting in exclude-common
+    cat << EXCLUDE_COMMON >> ./bs-exclude-common.cfg
+*/.DS_*
+EXCLUDE_COMMON
+
+    # generate test set file
+    cat << BS_SET > ./bs-set-test.cfg
+BACKUP_SET_DESCRIPTION="Test backup set"
+BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
+BACKUP_SOURCE_PATHS="${TEST_FILES}"
+BS_SET
+
+    # run a backup, save to log file
+    bs-backup -b test >bs-backup.log 2>&1
+    assert [ "$?" -eq 0 ]
+
+    # log file should now be generate and we can run some tests against it
+    assert_file_exists "bs-backup.log"
+
+    # do a log list and check for certain lines
+    run bs-logs -l
+    assert_success
+    # TODO use regex for below
+    assert_line --partial "1: "
+    assert_line --partial " +++BACKUP: test"
+
 }
