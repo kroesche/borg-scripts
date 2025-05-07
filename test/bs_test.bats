@@ -23,6 +23,21 @@
 # SOFTWARE.
 #
 
+# This script is for "unit testing" all the bs-scripts package.
+# It uses the bash test framework BATS
+# <https://bats-core.readthedocs.io/en/stable/index.html>
+#
+# To run it:
+#
+# * source the fixup script so env vars get defined:
+#     . ./fixup_bats.sh
+#     (see the comments in the fixup script)
+#
+# * run the test:
+#     bats bs_test.bats
+#
+# a human readable output is generated
+
 TEST_VER="0.3"
 
 if [ -z "${BATS_HOME}" ]
@@ -68,15 +83,15 @@ export BORG_BASE_DIR="${TEST_DIR}/borg_base_dir"
 # I think that 'hdiutil detach /Volumes/ramdisk' is the correct way to free it.
 #
 
-# SETUP PER FILE
-#
-# For now, the test file system and the test repo are set up once for the file
-# and all the test reuse it. Maybe it becomes necessary to do this per test.
-# In that case consider ramdisk mentioned above.
-#
-setup_file() {
-    # create the test file tree
+# clean the test files tree
+rm_testfiles() {
     rm -rf "${TEST_FILES}"
+}
+
+# create the tree of test files
+mk_testfiles() {
+    # create the test file tree
+    rm_testfiles
     mkdir "${TEST_FILES}"
     cd "${TEST_FILES}"
 
@@ -93,20 +108,76 @@ setup_file() {
         cd ..
     done
     cd ..
+}
 
+# clean/remove the test repo
+rm_repo() {
+    # verify vars are real before rm -rf
+    assert [ -n "${TEST_REPO}" ]
+    assert [ -n "${BORG_BASE_DIR}" ]
+    rm -rf "${TEST_REPO}"
+    rm -rf "${BORG_BASE_DIR}"
+}
+
+# create/init the test repo
+mk_repo() {
     # initialize the test repo
     rm -rf "${TEST_REPO}"
     borg init --encryption none "${TEST_REPO}"
 }
 
+# create a set of config files in the cwd (test dir)
+#
+mk_cwd_configs() {
+    # create the configs, use cwd
+    run bs-backup -g cwd
+    assert_success
+
+    # update bs-repo.cfg to have usefule BORG_REPO
+    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
+
+    # need to add the BS_LOG_... vars to bs-repo
+    echo "BS_LOG_PATH=$(pwd)" >> ./bs-repo.cfg
+    echo "BS_LOG_FILE=bs-backup.log" >> ./bs-repo.cfg
+
+    # put something interesting in exclude-common
+    cat << EXCLUDE_COMMON >> ./bs-exclude-common.cfg
+*/.DS_*
+EXCLUDE_COMMON
+
+    # generate test set file
+    cat << BS_SET > ./bs-set-test.cfg
+BACKUP_SET_DESCRIPTION="Test backup set"
+BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
+BACKUP_SOURCE_PATHS="${TEST_FILES}"
+BS_SET
+}
+
+
+# SETUP PER FILE
+#
+# For now, the test file system and the test repo are set up once for the file
+# and all the test reuse it. Maybe it becomes necessary to do this per test.
+# In that case consider ramdisk mentioned above.
+#
+setup_file() {
+    # create the test file tree
+    mk_testfiles
+
+    # initialize the test repo
+    mk_repo
+}
+
 # TEARDOWN PER FILE
 #
-# This should reverse setup_file(). For now it is commented out in order to
-# leave the artifacts while the test script is debugged.
+# Remove artifacts that were created during the tests.
 #
-#teardown_file() {
-#    rm -rf "${TEST_FILES}"
-#}
+teardown_file() {
+    rm -rf "${TEST_FILES}"
+    rm -rf "${TEST_REPO}"
+    rm -rf "${TEST_CONFIG}"
+    rm -rf "${BORG_BASE_DIR}"
+}
 
 # SETUP/TEARDOWN PER TEST
 
@@ -141,16 +212,22 @@ setup() {
     rm -f "${TEST_DIR}/bs-set-example.cfg"
     rm -f "${TEST_DIR}/bs-exclude-common.cfg"
     rm -f "${TEST_DIR}/bs-set-test.cfg"
+    rm -f "${TEST_DIR}/bs-backup.log"
+    rm -f "${TEST_DIR}/bs-backup.log.0"
     rm -f "${TEST_DIR}/../bs-repo.cfg"
     rm -f "${TEST_DIR}/../bs-set-example.cfg"
     rm -f "${TEST_DIR}/../bs-exclude-common.cfg"
     rm -f "${TEST_DIR}/../bs-set-test.cfg"
+    rm -f "${TEST_DIR}/../bs-backup.log"
+    rm -f "${TEST_DIR}/../bs-backup.log.0"
 }
 
-#teardown() {
-#   # apparently teardown cant be empty
-#    rm -f foobar
-#}
+# runs after every test
+teardown() {
+    # this file is needed for one specific test and will mess up any other
+    # tests if it is present
+    rm -f "${TEST_FILES}/folder_3/unreadable.txt"
+}
 
 @test "bs-backup basic version" {
     run bs-backup -V
@@ -243,23 +320,15 @@ setup() {
 }
 
 @test "bs-backup list configs" {
-    # generate some configs
-    run bs-backup -g cwd
-    assert_success
-
-    # make a new backup set file
-    cat << REPO_CFG > bs-set-test.cfg
-BACKUP_SET_DESCRIPTION="Test custom backup set"
-BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
-BACKUP_SOURCE_PATHS="$(pwd)/testfiles"
-REPO_CFG
+    # generate a set of config files
+    mk_cwd_configs
 
     # list available test configs, verify config loc first
     run bs-backup -l -v
     assert_success
     assert_line "Using current directory for configuration"
 
-    # avoind the verbosity and check the list
+    # avoid the verbosity and check the list
     run bs-backup -l
     assert_success
 
@@ -267,29 +336,13 @@ REPO_CFG
 Available backup configurations
 -------------------------------
 example          Example backup set
-test             Test custom backup set'
+test             Test backup set'
     assert_output "${expected}"
 }
 
 @test "bs-backup run test backup" {
-    # create the configs, use cwd
-    run bs-backup -g cwd
-    assert_success
-
-    # update bs-repo.cfg to have usefule BORG_REPO
-    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
-
-    # put something interesting in exclude-common
-    cat << EXCLUDE_COMMON >> ./bs-exclude-common.cfg
-*/.DS_*
-EXCLUDE_COMMON
-
-    # generate test set file
-    cat << BS_SET > ./bs-set-test.cfg
-BACKUP_SET_DESCRIPTION="Test backup set"
-BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
-BACKUP_SOURCE_PATHS="${TEST_FILES}"
-BS_SET
+    # generate a set of config files
+    mk_cwd_configs
 
     # run a backup
     run bs-backup -b test
@@ -346,34 +399,14 @@ BS_SET
     # this first part just recreates a normal backup
     # but this time we need to save the log
 
-    # create the configs, use cwd
-    run bs-backup -g cwd
-    assert_success
-
-    # update bs-repo.cfg to have usefule BORG_REPO
-    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
-
-    # need to add the BS_LOG_... vars to bs-repo
-    echo "BS_LOG_PATH=$(pwd)" >> ./bs-repo.cfg
-    echo "BS_LOG_FILE=bs-backup.log" >> ./bs-repo.cfg
-
-    # put something interesting in exclude-common
-    cat << EXCLUDE_COMMON >> ./bs-exclude-common.cfg
-*/.DS_*
-EXCLUDE_COMMON
-
-    # generate test set file
-    cat << BS_SET > ./bs-set-test.cfg
-BACKUP_SET_DESCRIPTION="Test backup set"
-BACKUP_CUSTOM_FLAGS="--exclude 'foo/bar baz'"
-BACKUP_SOURCE_PATHS="${TEST_FILES}"
-BS_SET
+    # create configs in cwd
+    mk_cwd_configs
 
     # run a backup, save to log file
-    bs-backup -b test >bs-backup.log 2>&1
+    bs-backup -b test > bs-backup.log 2>&1
     assert [ "$?" -eq 0 ]
 
-    # log file should now be generate and we can run some tests against it
+    # log file should now be generated and we can run some tests against it
     assert_file_exists "bs-backup.log"
 
     # do a log list and check for certain lines
@@ -382,60 +415,172 @@ BS_SET
     # TODO use regex for below
     assert_line --partial "1: "
     assert_line --partial " +++BACKUP: test"
+    refute_line --partial "2: "
 
+    # run a second backup and verify a second set appears in the log
+    bs-backup -b test >> bs-backup.log 2>&1
+    assert [ "$?" -eq 0 ]
+    run bs-logs -l
+    assert_success
+    # TODO use regex for below
+    assert_line --partial "2: "
+    assert_line --partial " +++BACKUP: test"
 }
 
+#### COPILOT
+
+# tests from here depend on prior test being run. It continues to use the
+# existing repo that was generated in prior tests, and the tree of testfiles
+# that was generated at the beginning of all the tests
+
 @test "bs-logs extract added files" {
-    # Generate a backup and log file
-    run bs-backup -g cwd
-    assert_success
-    echo "BORG_REPO=${TEST_REPO}" >> ./bs-repo.cfg
-    echo "BS_LOG_PATH=$(pwd)" >> ./bs-repo.cfg
-    echo "BS_LOG_FILE=bs-backup.log" >> ./bs-repo.cfg
-    bs-backup -b test >bs-backup.log 2>&1
+    # generate configs
+    mk_cwd_configs
+
+    # add a file to the test files tree so we can pick it up as "added"
+    echo "file9" > "${TEST_FILES}/folder_0/file_9.bin"
+
+    # now run a new backup
+    bs-backup -b test > bs-backup.log 2>&1
     assert [ "$?" -eq 0 ]
     assert_file_exists "bs-backup.log"
+
+    # check log listing
+    run bs-logs -l
+    assert_success
+    # TODO use regex for below
+    assert_line --partial "1: "
+    assert_line --partial " +++BACKUP: test"
 
     # Extract added files
     run bs-logs -x 1 -a
     assert_success
-    assert_output --partial "A /path/to/added/file"
+    assert_line "A ${TEST_FILES}/folder_0/file_9.bin"
 }
 
 @test "bs-logs extract modified files" {
+    # generate configs
+    mk_cwd_configs
+
+    # overwrite one of the existing files in the testfiles so get a
+    # "modified" file in the backup
+    echo "foobar" >> "${TEST_FILES}/folder_2/file_2.bin"
+
+    # now run a new backup
+    bs-backup -b test > bs-backup.log 2>&1
+    assert [ "$?" -eq 0 ]
+    assert_file_exists "bs-backup.log"
+
+    # check log listing
+    run bs-logs -l
+    assert_success
+    # TODO use regex for below
+    assert_line --partial "1: "
+    assert_line --partial " +++BACKUP: test"
+
+    # Extract modifed files
     run bs-logs -x 1 -m
     assert_success
-    assert_output --partial "M /path/to/modified/file"
+    assert_line "M ${TEST_FILES}/folder_2/file_2.bin"
 }
 
 @test "bs-logs extract error files" {
+    # generate configs
+    mk_cwd_configs
+
+    # create a new file in the test files backup set
+    # disable read permissions. this should cause an error in the log
+    echo "unreadable" >> "${TEST_FILES}/folder_3/unreadable.txt"
+    chmod -r "${TEST_FILES}/folder_3/unreadable.txt"
+
+    # now run a new backup
+    # bs-backup returns error because bad file causes error/warning
+    # backup still works though
+    # if it returns a 1, then bats test script fails out
+    # cant use run because it captures all the output that we want in the log
+    bs-backup -b test > bs-backup.log 2>&1 || true
+    assert_file_exists "bs-backup.log"
+
+    # check log listing
+    run bs-logs -l
+    assert_success
+    # TODO use regex for below
+    assert_line --partial "1: "
+    assert_line --partial " +++BACKUP: test"
+
+    # Extract modifed files
     run bs-logs -x 1 -e
     assert_success
-    assert_output --partial "E /path/to/error/file"
+    assert_line "E ${TEST_FILES}/folder_3/unreadable.txt"
 }
 
 @test "bs-logs prune log" {
-    # Prune the log to keep only 1 backup
-    run bs-logs -p 1
-    assert_success
+    # generate some config files
+    mk_cwd_configs
+
+    # run a backup 3 times to add multiple sets to the log
+    # dont need to check return each time because bats will fail out
+    # if bs-backup returns an error
+    bs-backup -b test > bs-backup.log 2>&1
+    bs-backup -b test >> bs-backup.log 2>&1
+    bs-backup -b test >> bs-backup.log 2>&1
+
+    # now check log listing. there should be 3 backup sets
     run bs-logs -l
     assert_success
-    assert_line --partial "1: +++BACKUP: test"
+    assert_line --partial "1: "
+    assert_line --partial "2: "
+    assert_line --partial "3: "
+
+    # prune to 1 and verify
+    run bs-logs -p 1
+    assert_success
+    # some stuff we expect to see from pruning operation
+    assert_line "DELETE: 0"
+    assert_line "DELETE: 1"
+    assert_line --partial "Keeping"
+    assert_line --partial "Deleting"
+
+    run bs-logs -l
+    assert_success
+    assert_line --partial "1: "
+    refute_line --partial "2: "
+    refute_line --partial "3: "
 }
 
 @test "bs-logs delete backup set" {
-    # Delete the first backup set
-    run bs-logs -d 1
-    assert_success
+    # the prune operation, tested above, already used the delete function
+    # for this test, create two backups, and delete one, as a simple
+    # check that delete option works
+
+    # generate some config files
+    mk_cwd_configs
+
+    # run a backup 2 times to add multiple sets to the log
+    # dont need to check return each time because bats will fail out
+    # if bs-backup returns an error
+    bs-backup -b test > bs-backup.log 2>&1
+    bs-backup -b test >> bs-backup.log 2>&1
+
+    # now check log listing. there should be 2 backup sets
     run bs-logs -l
     assert_success
-    assert_no_line "1: +++BACKUP: test"
-}
+    assert_line --partial "1: "
+    assert_line --partial "2: "
 
-@test "bs-logs save log" {
-    # Verify that a backup of the log is created
-    run bs-logs -p 1
+    # delete set 2
+    run bs-logs -d 2
     assert_success
+    assert_line "DELETE: 2"
+
+    # verify that its gone from the log
+    run bs-logs -l
+    assert_success
+    assert_line --partial "1: "
+    refute_line --partial "2: "
+    refute_line --partial "3: "
+
+    # verify a backup of the log file was made
     assert_file_exists "bs-backup.log.0"
 }
 

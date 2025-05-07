@@ -181,6 +181,7 @@ delete_backup()
     local logfile="$1"
 
     echo "DELETE: ${requested_set}"
+    echo "logfile: ${logfile}"
 
     while read -r logline
     do
@@ -240,12 +241,12 @@ prune_backup()
     done < "${logfile}"
     # set_id has the number of backups that need to be deleted
     # delete 0 first to get rid of any leading cruft
-    delete_backup 0
+    delete_backup "${logfile}" 0
     # delete first backup for as many as needed
     # this is inefficent and should be improved, but works
     while [ "${set_id}" -gt 0 ]
     do
-        delete_backup 1
+        delete_backup "${logfile}" 1
         set_id=$((set_id - 1))
     done
 }
