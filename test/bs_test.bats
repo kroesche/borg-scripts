@@ -52,12 +52,14 @@ fi
 # test/testrepo     - borg repo created for testing
 # test/testfiles    - generated file tree to use for test backup
 # test/testconfig   - custom location for config files
+# test/testinstall  - custom test location for script installation
 # test/borg_base_dir - BORG_BASE_DIR, borg cached and metadata for the test
 
 TEST_DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
 TEST_REPO="${TEST_DIR}/testrepo"
 TEST_FILES="${TEST_DIR}/testfiles"
 TEST_CONFIG="${TEST_DIR}/testconfig"
+TEST_INSTALL="${TEST_DIR}/testinstall"
 
 # unset some variables that might be in the environment
 # the test needs to control the value of these
@@ -206,6 +208,10 @@ setup() {
     # the config directory has to exist before it can be used
     rm -rf "${TEST_CONFIG}"
     mkdir -p "${TEST_CONFIG}"
+
+    # same for install
+    rm -rf "${TEST_INSTALL}"
+    mkdir -p "${TEST_INSTALL}"
 
     # remove any existing config files to make sure we are starting clean
     rm -f "${TEST_DIR}/bs-repo.cfg"
@@ -427,8 +433,6 @@ test             Test backup set'
     assert_line --partial " +++BACKUP: test"
 }
 
-#### COPILOT
-
 # tests from here depend on prior test being run. It continues to use the
 # existing repo that was generated in prior tests, and the tree of testfiles
 # that was generated at the beginning of all the tests
@@ -589,4 +593,32 @@ test             Test backup set'
     run bs-logs -z
     assert_failure
     assert_output --partial "Invalid option"
+}
+
+######## BS-INSTALL ########
+
+@test "bs-install basic version" {
+    run bs-install -V
+    assert_success
+    assert_line 'bs-install from bs-scripts package 0.3'
+}
+
+@test "bs-install install/remove scripts to test location" {
+    assert_file_not_exists "${TEST_INSTALL}/bs-backup"
+
+    # not test man page install because that goes to a system path
+    run bs-install -s .. -d "${TEST_INSTALL}"
+    assert_success
+    assert_file_exists "${TEST_INSTALL}/bs-backup"
+    assert_file_exists "${TEST_INSTALL}/bs-logs"
+    assert_file_exists "${TEST_INSTALL}/bs-verify"
+    assert_file_exists "${TEST_INSTALL}/bs-agent"
+
+    # verify remove works
+    run bs-install -r "${TEST_INSTALL}"
+    assert_success
+    assert_file_not_exists "${TEST_INSTALL}/bs-backup"
+    assert_file_not_exists "${TEST_INSTALL}/bs-logs"
+    assert_file_not_exists "${TEST_INSTALL}/bs-verify"
+    assert_file_not_exists "${TEST_INSTALL}/bs-agent"
 }

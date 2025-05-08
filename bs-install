@@ -23,8 +23,7 @@
 # SOFTWARE.
 
 #
-# This script is used to install bs-scripts into a user preferred location, and
-# to generate template config files.
+# This script is used to install bs-scripts into a user preferred location.
 #
 
 VER="0.3"
@@ -246,7 +245,7 @@ then
     if [ "${man}" = "1" ]
     then
         cd man || { echo "Could not cd to 'man' directory"; exit 1; }
-        ./bs-install-man -i
+        ./bs-install-man -r
     fi
 else
     echo "I'm not sure what you want me to do. Try -h"
