@@ -27,10 +27,9 @@
 
 VER="0.3"
 
-#LOG_PATH="."
-LOG_PATH="${HOME}/Library/Logs"
-LOG_FILE="bs-backup.log"
-TMPFILE="${LOG_FILE}.tmp"
+verbose=0
+_fullpath="$(realpath "$0")"
+SCRIPT_DIR="$(dirname "${_fullpath}")"
 
 usage()
 {
@@ -44,7 +43,7 @@ Usage:
   bs-logs -x SET_ID [ -e | -m | -a ]
   bs-logs -d SET_ID
   bs-logs -p N
-  bs-logs -v
+  bs-logs -V
   bs-logs -h
 
 Options:
@@ -56,7 +55,8 @@ Options:
   -a            with -x, show added files in backup
   -d SET_ID     delete backup set data from log file (reduces log size)
   -p N          prune log keeping N most recent backup sets log data
-  -v            show version
+  -v            verbose - show extra debugging messages (must be first opt)
+  -V            show version
   -h            show help
 
 Only one of -e/-m/-a can be used at a time.
@@ -64,10 +64,93 @@ Only one of -e/-m/-a can be used at a time.
 USAGE
 }
 
+# print a thing if verbose is enabled
+# $1 - string to print
+dbg_print()
+{
+    local msg
+    msg="$1"
+    if [ "${verbose}" -eq 1 ]
+    then
+        echo "${msg}"
+    fi
+}
+
+# determine where to look for configuration stuff
+# order of precedence
+# - BS_SCRIPTS_CONFIG - user defines in the environment, use this if defined
+# - CWD - if starting dir contains bs-repo.cfg, use that for config
+# - XDG_CONFIG_HOME/bs-scipts - if defined use this location
+# - ~/.config/bs-scripts - look here by default if nothing else defined
+# - script dir - final fallback
+#
+# sets BS_SCRIPTS_CONFIG and REPO_CONFIG_FILE
+get_config()
+{
+    dbg_print "Determining configuration files location ..."
+    if [ -n "${BS_SCRIPTS_CONFIG}" ]
+    then
+        # preferred config dir is in the env
+        dbg_print "Using user defined BS_SCRIPTS_CONFIG as config location"
+    elif [ -f "bs-repo.cfg" ]
+    then
+        # found a repo config in the current dir, use that
+        BS_SCRIPTS_CONFIG="$(pwd)"
+        dbg_print "Using current directory for configuration"
+    elif [ -n "${XDG_CONFIG_HOME}" ] && [ -f "${XDG_CONFIG_HOME}/bs-scripts/bs-repo.cfg" ]
+    then
+        # XDG_CONFIG_HOME exists, so if repo config is there, use that
+        BS_SCRIPTS_CONFIG="${XDG_CONFIG_HOME}/bs-scripts"
+        dbg_print "Using XDG_CONFIG_HOME for configuration"
+    elif [ -f "${HOME}/.config/bs-scripts/bs-repo.cfg" ]
+    then
+        # found repo config in ~/.config ...
+        BS_SCRIPTS_CONFIG="$(realpath "${HOME}")/.config/bs-scripts"
+        dbg_print "Using local config"
+    else
+        # try the scripts dir
+        BS_SCRIPTS_CONFIG="$(realpath "${SCRIPT_DIR}")"
+        dbg_print "Using scripts dir"
+    fi
+
+    dbg_print "I think my configuration is here:"
+    dbg_print "[${BS_SCRIPTS_CONFIG}]"
+    REPO_CONFIG_FILE="${BS_SCRIPTS_CONFIG}/bs-repo.cfg"
+    if [ -f "${REPO_CONFIG_FILE}" ]
+    then
+        dbg_print "Using config: ${REPO_CONFIG_FILE}"
+    else
+        echo "I could not find configuration file:"
+        echo "[${REPO_CONFIG_FILE}]"
+        exit 1
+    fi
+
+    # get the log file config from repo config file
+    # REPO_CONFIG_FILE is known to exist at this point
+    . "${REPO_CONFIG_FILE}"
+    if [ -z "${BS_LOG_PATH}" ]
+    then
+        echo "BS_LOG_PATH is not defined"
+        exit 1
+    else
+        dbg_print "Using BS_LOG_PATH: ${BS_LOG_PATH}"
+    fi
+    if [ -z "${BS_LOG_FILE}" ]
+    then
+        echo "BS_LOG_FILE is not defined"
+        exit 1
+    else
+        dbg_print "Using BS_LOG_FILE: ${BS_LOG_FILE}"
+    fi
+}
+
 # scan log for start markers, echo to console
+# $1 - log file path/file
 list_backups()
 {
     local set_id=1
+    local logfile="$1"
+
     while read -r logline
     do
         case "${logline}" in
@@ -78,16 +161,21 @@ list_backups()
             *)
                 ;;
         esac
-    done < "${LOG_PATH}/${LOG_FILE}"
+    done < "${logfile}"
 }
 
 # copy log to tmp file, except lines which match requested backup number
 # after tmp file is finished, copy back to main log file
+# $1 - log file path/file
+# $2 - requested set
 delete_backup()
 {
-    local requested_set="$1"
+    local requested_set="$2"
     local set_id=0
+    local logfile="$1"
+
     echo "DELETE: ${requested_set}"
+    echo "logfile: ${logfile}"
 
     while read -r logline
     do
@@ -111,23 +199,28 @@ delete_backup()
         # so those line are "deleted"
         if [ "${set_id}" -ne "${requested_set}" ]
         then
-            echo "${logline}" >> "${TMPFILE}"
+            echo "${logline}" >> "${logfile}.tmp"
         fi
-    done < "${LOG_PATH}/${LOG_FILE}"
-    cp "${TMPFILE}" "${LOG_PATH}/${LOG_FILE}"
-    rm "${TMPFILE}"
+    done < "${logfile}"
+    cp "${logfile}.tmp" "${logfile}"
+    rm "${logfile}.tmp"
 }
 
 # make a "backup" copy of the backup log
+# $1 - log file path/file
 save_log()
 {
-    cp "${LOG_PATH}/${LOG_FILE}" "${LOG_PATH}/${LOG_FILE}.0"
+    local logfile="$1"
+    cp "${logfile}" "${logfile}.0"
 }
 
 # remove all but the last N backups from the log
+# $1 - log file path/file
+# $2 - number remaining
 prune_backup()
 {
-    local set_id=$((0 - $1))
+    local set_id=$((0 - $2))
+    local logfile="$1"
 
     # count number of backup sets in the log
     while read -r logline
@@ -139,30 +232,32 @@ prune_backup()
             *)
                 ;;
         esac
-    done < "${LOG_PATH}/${LOG_FILE}"
+    done < "${logfile}"
     # set_id has the number of backups that need to be deleted
     # delete 0 first to get rid of any leading cruft
-    delete_backup 0
+    delete_backup "${logfile}" 0
     # delete first backup for as many as needed
     # this is inefficent and should be improved, but works
     while [ "${set_id}" -gt 0 ]
     do
-        delete_backup 1
+        delete_backup "${logfile}" 1
         set_id=$((set_id - 1))
     done
 }
 
 # extract data about a backup, with various options
-# $1 is the set number to extract (numbers from -l)
-# $2 is a filter value
+# $1 - log file path/file
+# $2 is the set number to extract (numbers from -l)
+# $3 is a filter value
 # * a - print lines of added files
 # * m - print lines of modified files
 # * e - print lines of error files
 # * s - print just a summary of the backup set
 extract_backup()
 {
-    local requested_set="$1"
-    local filter="$2"
+    local logfile="$1"
+    local requested_set="$2"
+    local filter="$3"
     local set_id=1
     local extracting=0
     local summarize=0
@@ -264,7 +359,7 @@ extract_backup()
         then
             echo "${logline}"
         fi
-    done < "${LOG_PATH}/${LOG_FILE}"
+    done < "${logfile}"
 }
 
 # process command line
@@ -284,24 +379,29 @@ fi
 
 do_extract=0
 
-while getopts ":lx:emad:p:s:hv" opt; do
+while getopts ":lx:emad:p:s:hvV" opt; do
     case ${opt} in
         h)
             usage
             exit 0
             ;;
-        v)
+        V)
             echo "bs-logs from bs-scripts package ${VER}"
             echo "https://github.com/kroesche/bs-scripts"
             exit 0
             ;;
+        v)
+            verbose=1
+            ;;
         l)
-            list_backups
+            get_config
+            list_backups "${BS_LOG_PATH}/${BS_LOG_FILE}"
             exit 0
             ;;
         d)
-            save_log
-            delete_backup "${OPTARG}"
+            get_config
+            save_log "${BS_LOG_PATH}/${BS_LOG_FILE}"
+            delete_backup "${BS_LOG_PATH}/${BS_LOG_FILE}" "${OPTARG}"
             exit 0
             ;;
         x)
@@ -321,8 +421,9 @@ while getopts ":lx:emad:p:s:hv" opt; do
             filter="s"
             ;;
         p)
-            save_log
-            prune_backup "${OPTARG}"
+            get_config
+            save_log "${BS_LOG_PATH}/${BS_LOG_FILE}"
+            prune_backup "${BS_LOG_PATH}/${BS_LOG_FILE}" "${OPTARG}"
             exit 0
             ;;
         :)
@@ -340,9 +441,12 @@ while getopts ":lx:emad:p:s:hv" opt; do
     esac
 done
 
+# determine config file locations
+get_config
+
 if [ "${do_extract}" -ne 0 ]
 then
-    extract_backup "${do_extract}" "${filter}"
+    extract_backup "${BS_LOG_PATH}/${BS_LOG_FILE}" "${do_extract}" "${filter}"
 fi
 
 exit 0

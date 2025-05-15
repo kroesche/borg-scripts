@@ -49,6 +49,9 @@ bs-backup \- Run a backup using 'borg' backup utility, using a config file.
 .B \-v
 .YS
 .SY bs-backup
+.B \-V
+.YS
+.SY bs-backup
 .B \-h
 .YS
 .
@@ -90,6 +93,8 @@ disable the compact operation at the end of a backup
 .IP "-l"
 list the available backup set definitions
 .IP \-v
+verbose output (for troubleshooting
+.IP \-V
 show version
 .IP \-h
 show help
@@ -105,23 +110,45 @@ successful.
 .SH FILES
 .\" ---------------------------------------------------------------------------
 .P
-The configuration files are located in the same directory as the
-.I bs-backup
-script.
+The following configuration files are used:
 .P
-.I ./bs-set-SETNAME.cfg
+.I bs-scripts.cfg
+.RS
+Configuration file defining borg repository and credentials as well as other
+features of the
+.BR bs-scripts \~package.
+.RE
+.P
+.I bs-set-SETNAME.cfg
 .RS
 Configuration file for the backup set named SETNAME.
-.
 .RE
-.I ./bs-repo.cfg
-.RS
-Configuration file defining the borg repository and credentials.
-.RE
-.I ./exclude-common.txt
+.P
+.I exclude-common.txt
 .RS
 Common files and paths to be excluded from all backup sets.
 .RE
+.P
+The location of configuration files is determined in the following order:
+.P
+.IP \(bu
+at
+.B $BS_SCRIPTS_CONFIG,
+if defined
+.IP \(bu
+the current directory
+.IP \(bu
+at
+.B $XDG_CONFIG_HOME/bs-scripts,
+if XDG_CONFIG_HOME is defined
+.IP \(bu
+at
+.B $HOME/.config/bs-scripts,
+if present
+.IP \(bu
+the directory containing the
+.I bs-backup
+script and other bs-scripts
 .
 .\" ---------------------------------------------------------------------------
 .SH EXAMPLES
